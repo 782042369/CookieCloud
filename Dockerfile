@@ -16,7 +16,6 @@ COPY internal ./internal
 # 构建优化的Go应用
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -trimpath -o main ./cmd/cookiecloud
 
-
 # 最终生产阶段
 FROM alpine:latest
 WORKDIR /app
