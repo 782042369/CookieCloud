@@ -44,7 +44,7 @@ ENV NODE_ENV=production \
 
 RUN
 # 从各阶段复制必要文件
-COPY --from=builder /app/dist ./dist/
+COPY --from=builder /app/app.js ./
 COPY --from=production-deps /app/node_modules ./node_modules/
 
 
