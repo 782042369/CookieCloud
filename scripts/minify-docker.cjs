@@ -8,7 +8,7 @@ const fs = require('fs-extra');
   const resultFolder = path.join(projectRoot, 'app-minimal') // no need to resolve, ProjectRoot is always absolute
 
   let mainPath = ''
-  const mainPaths = ['dist/main.js']
+  const mainPaths = ['app.js']
   for (const key of mainPaths) {
     const fullPath = path.join(projectRoot, key)
     if (await fs.pathExists(fullPath)) {
