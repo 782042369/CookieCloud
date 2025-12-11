@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 
 	"cookiecloud/internal/handlers"
 	"cookiecloud/internal/storage"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -25,18 +25,23 @@ func main() {
 		apiRoot = strings.TrimSuffix(apiRoot, "/")
 	}
 
-	// 创建路由器
-	r := mux.NewRouter()
+	// 创建Fiber应用
+	app := fiber.New()
+
+	// 添加CORS中间件
+	app.Use(cors.New())
 
 	// 注册路由
 	// 根路径处理器
-	r.HandleFunc(apiRoot+"/", handlers.RootHandler(apiRoot)).Methods("GET", "POST")
+	app.Get(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
+	app.Post(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
 
 	// 更新数据处理器
-	r.HandleFunc(apiRoot+"/update", handlers.UpdateHandler).Methods("POST")
+	app.Post(apiRoot+"/update", handlers.FiberUpdateHandler)
 
 	// 获取数据处理器
-	r.HandleFunc(apiRoot+"/get/{uuid}", handlers.GetHandler).Methods("GET", "POST")
+	app.Get(apiRoot+"/get/:uuid", handlers.FiberGetHandler)
+	app.Post(apiRoot+"/get/:uuid", handlers.FiberGetHandler)
 
 	// 启动服务器
 	port := os.Getenv("PORT")
@@ -45,5 +50,5 @@ func main() {
 	}
 
 	fmt.Printf("服务器启动于 http://localhost:%s%s\n", port, apiRoot)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Fatal(app.Listen(":" + port))
 }

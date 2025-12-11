@@ -1,21 +1,18 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 
 	"cookiecloud/internal/crypto"
 	"cookiecloud/internal/storage"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 )
 
-// RootHandler 根路径处理器，返回欢迎信息
-func RootHandler(apiRoot string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello World! API ROOT = %s", apiRoot)
+// FiberRootHandler Fiber版本的根路径处理器，返回欢迎信息
+func FiberRootHandler(apiRoot string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return c.SendString(fmt.Sprintf("Hello World! API ROOT = %s", apiRoot))
 	}
 }
 
@@ -25,37 +22,38 @@ type UpdateRequest struct {
 	UUID      string `json:"uuid"`
 }
 
-// UpdateHandler 处理更新请求，保存加密数据
-func UpdateHandler(w http.ResponseWriter, r *http.Request) {
+// FiberUpdateHandler Fiber版本的处理更新请求，保存加密数据
+func FiberUpdateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Bad Request: failed to read request body", http.StatusBadRequest)
-		return
-	}
 
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, "Bad Request: failed to parse JSON", http.StatusBadRequest)
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"action": "error",
+			"reason": "Bad Request: failed to parse JSON",
+		})
 	}
 
 	// 验证必填字段
 	if req.Encrypted == "" || req.UUID == "" {
-		http.Error(w, "Bad Request: both 'encrypted' and 'uuid' fields are required", http.StatusBadRequest)
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"action": "error",
+			"reason": "Bad Request: both 'encrypted' and 'uuid' fields are required",
+		})
 	}
 
 	// 保存加密数据到文件
-	err = storage.SaveEncryptedData(req.UUID, req.Encrypted)
+	err := storage.SaveEncryptedData(req.UUID, req.Encrypted)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Internal Server Error: failed to save data: %v", err), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"action": "error",
+			"reason": fmt.Sprintf("Internal Server Error: failed to save data: %v", err),
+		})
 	}
 
 	// 返回成功响应
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"action": "done"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"action": "done",
+	})
 }
 
 // DecryptRequest 解密请求的数据结构
@@ -63,44 +61,47 @@ type DecryptRequest struct {
 	Password string `json:"password"`
 }
 
-// GetHandler 处理获取数据请求
-func GetHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	uuid := vars["uuid"]
+
+// FiberGetHandler Fiber版本的处理获取数据请求
+func FiberGetHandler(c *fiber.Ctx) error {
+	uuid := c.Params("uuid")
 
 	// 验证必填字段
 	if uuid == "" {
-		http.Error(w, "Bad Request: 'uuid' is required", http.StatusBadRequest)
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"action": "error",
+			"reason": "Bad Request: 'uuid' is required",
+		})
 	}
 
 	// 从文件获取加密数据
 	data, err := storage.LoadEncryptedData(uuid)
 	if err != nil {
-		http.Error(w, "Not Found: data not found for uuid", http.StatusNotFound)
-		return
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"action": "error",
+			"reason": "Not Found: data not found for uuid",
+		})
 	}
 
 	// 如果是POST请求且提供了密码，则解密后返回数据
-	if r.Method == "POST" {
+	if c.Method() == "POST" {
 		var req DecryptRequest
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Bad Request: failed to read request body", http.StatusBadRequest)
-			return
+
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"action": "error",
+				"reason": "Bad Request: failed to parse JSON",
+			})
 		}
 
-		if err := json.Unmarshal(body, &req); err == nil && req.Password != "" {
+		if req.Password != "" {
 			// 解密数据
 			decrypted := crypto.Decrypt(uuid, data.Encrypted, req.Password)
-
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(decrypted)
-			return
+			c.Set("Content-Type", "application/json")
+			return c.Send(decrypted)
 		}
 	}
 
 	// 返回加密数据
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	return c.Status(fiber.StatusOK).JSON(data)
 }
