@@ -4,7 +4,7 @@ FROM node:24-alpine as builder
 WORKDIR /app
 
 # 安装 pnpm 并配置缓存
-RUN npm i -g pnpm@10.12.4 && \
+RUN npm i -g pnpm@10 && \
     pnpm config set store-dir /root/.pnpm-store
 
 # 优先复制包管理文件以利用构建缓存
@@ -16,8 +16,7 @@ RUN  pnpm install --frozen-lockfile
 COPY . .
 
 # 执行构建
-RUN pnpm run build && \
-    rm -rf node_modules && \
+RUN rm -rf node_modules && \
     pnpm install --prod --frozen-lockfile && \
     pnpm add @vercel/nft fs-extra --save-prod
 
