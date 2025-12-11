@@ -42,7 +42,6 @@ ENV NODE_ENV=production \
 # 设置时区
   TZ="Asia/Shanghai"
 
-RUN
 # 从各阶段复制必要文件
 COPY --from=builder /app/app.js ./
 COPY --from=production-deps /app/node_modules ./node_modules/
