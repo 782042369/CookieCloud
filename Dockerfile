@@ -1,53 +1,49 @@
 # 构建阶段：使用多阶段构建最小化生产镜像
-# 阶段一：构建
-FROM node:24-alpine as builder
+# 阶段一：构建 service (Go版本)
+FROM golang:1.25-alpine as service-builder
 WORKDIR /app
 
-# 安装 pnpm 并配置缓存
-RUN npm i -g pnpm@10 && \
-    pnpm config set store-dir /root/.pnpm-store
+# 复制Go模块文件
+COPY go.mod go.sum ./
 
-# 优先复制包管理文件以利用构建缓存
-COPY package.json pnpm-lock.yaml ./
+# 下载依赖
+RUN go mod download
 
-# 安装所有依赖（包括devDependencies）
-RUN  pnpm install --frozen-lockfile
+# 复制源代码
+COPY cmd ./cmd
+COPY internal ./internal
 
-COPY . .
+# 构建优化的Go应用
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -trimpath -o main ./cmd/cookiecloud
 
-# 执行构建
-RUN rm -rf node_modules && \
-    pnpm install --prod --frozen-lockfile && \
-    pnpm add @vercel/nft fs-extra --save-prod
-
-# 生产阶段：仅安装生产依赖
-FROM node:24-alpine as production-deps
-
-WORKDIR /app
-
-COPY --from=builder /app /app
-
-RUN export PROJECT_ROOT=/app/ && \
-    node /app/scripts/minify-docker.cjs && \
-    rm -rf /app/node_modules /app/scripts && \
-    mv /app/app-minimal/node_modules /app/ && \
-    rm -rf /app/app-minimal
 
 # 最终生产阶段
-FROM node:24-alpine
+FROM alpine:latest
 WORKDIR /app
 
-# 环境变量
-ENV NODE_ENV=production \
-# 设置时区
-  TZ="Asia/Shanghai"
+# 安装ca-certificates以支持HTTPS请求
+RUN apk --no-cache add ca-certificates
 
-# 从各阶段复制必要文件
-COPY --from=builder /app/app.js ./
-COPY --from=production-deps /app/node_modules ./node_modules/
+# 创建非特权用户
+RUN addgroup -g 1001 appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
 
+# 从 service-builder 阶段复制所有必要文件
+COPY --from=service-builder --chown=appuser:appgroup /app/main ./main
 
-CMD ["node", "app.js"]
+# 创建 data 目录并设置正确的所有权
+RUN mkdir -p ./data && chown appuser:appgroup ./data
 
-# 暴露端口
+# 设置用户权限
+USER appuser
+
+# 声明端口
+ENV PORT=8088
+
 EXPOSE 8088
+
+# 添加健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:8088/ || exit 1
+
+CMD ["./main"]
