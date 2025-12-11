@@ -7,9 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"cookiecloud/internal/handlers"
 	"cookiecloud/internal/storage"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -30,10 +31,10 @@ func main() {
 	// 注册路由
 	// 根路径处理器
 	r.HandleFunc(apiRoot+"/", handlers.RootHandler(apiRoot)).Methods("GET", "POST")
-	
+
 	// 更新数据处理器
 	r.HandleFunc(apiRoot+"/update", handlers.UpdateHandler).Methods("POST")
-	
+
 	// 获取数据处理器
 	r.HandleFunc(apiRoot+"/get/{uuid}", handlers.GetHandler).Methods("GET", "POST")
 
