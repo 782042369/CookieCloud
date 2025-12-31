@@ -25,9 +25,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # 最终生产阶段 - 使用最小的scratch基础镜像
 FROM scratch
 
-# 添加必要的证书和时区数据
-COPY --from=alpine:latest /usr/share/zoneinfo /usr/share/zoneinfo
-
 # 设置工作目录
 WORKDIR /
 
