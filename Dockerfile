@@ -31,9 +31,6 @@ WORKDIR /
 # 从构建阶段复制二进制文件
 COPY --from=builder /app/main /main
 
-# 创建数据目录
-RUN mkdir -p /data
-
 # 环境变量
 ENV PORT=8088
 
