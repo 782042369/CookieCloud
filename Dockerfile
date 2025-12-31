@@ -18,41 +18,31 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \
+    -a -ldflags="-w -s -extldflags -static" \
     -trimpath \
     -o main ./cmd/cookiecloud
 
-# 最终生产阶段
-FROM alpine:latest
+# 最终生产阶段 - 使用最小的scratch基础镜像
+FROM scratch
 
-# 安装最小运行时依赖
-RUN apk --no-cache add \
-    ca-certificates \
-    tzdata && \
-    addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# 添加必要的证书和时区数据
+COPY --from=alpine:latest /usr/share/zoneinfo /usr/share/zoneinfo
 
 # 设置工作目录
-WORKDIR /app
+WORKDIR /
 
 # 从构建阶段复制二进制文件
-COPY --from=builder --chown=appuser:appgroup /app/main ./main
+COPY --from=builder /app/main /main
 
-# 创建数据目录并设置权限
-RUN mkdir -p ./data && chown appuser:appgroup ./data
-
-# 设置非特权用户
-USER appuser
+# 创建数据目录
+RUN mkdir -p /data
 
 # 环境变量
-ENV PORT=8088 \
-    GIN_MODE=release
+ENV PORT=8088
 
 # 暴露端口
 EXPOSE 8088
 
-# 健康检查（使
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8088/ || exit 1
 
 # 使用exec形式启动应用
-CMD ["./main"]
+CMD ["/main"]
