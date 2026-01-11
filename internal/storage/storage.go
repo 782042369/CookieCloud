@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
-const (
-	// DataDir 数据存储目录
-	DataDir = "./data"
+var (
+	dataDir = "./data" // 默认数据目录
+	fileLocks sync.Map // 文件锁映射
 )
 
 // CookieData Cookie数据结构
@@ -18,16 +19,28 @@ type CookieData struct {
 }
 
 // InitDataDir 初始化数据目录
-func InitDataDir() error {
-	if _, err := os.Stat(DataDir); os.IsNotExist(err) {
-		return os.Mkdir(DataDir, 0755)
+func InitDataDir(dir string) error {
+	dataDir = dir
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		return os.Mkdir(dataDir, 0755)
 	}
 	return nil
 }
 
+// getFileLock 获取指定UUID的文件锁
+func getFileLock(uuid string) *sync.Mutex {
+	lock, _ := fileLocks.LoadOrStore(uuid, &sync.Mutex{})
+	return lock.(*sync.Mutex)
+}
+
 // SaveEncryptedData 保存加密数据到指定UUID的文件中
 func SaveEncryptedData(uuid, encrypted string) error {
-	filePath := filepath.Join(DataDir, uuid+".json")
+	// 获取文件锁
+	lock := getFileLock(uuid)
+	lock.Lock()
+	defer lock.Unlock()
+
+	filePath := filepath.Join(dataDir, uuid+".json")
 
 	// 创建CookieData结构体实例
 	cookieData := CookieData{
@@ -50,7 +63,7 @@ func SaveEncryptedData(uuid, encrypted string) error {
 
 // LoadEncryptedData 从指定UUID的文件中加载加密数据
 func LoadEncryptedData(uuid string) (*CookieData, error) {
-	filePath := filepath.Join(DataDir, uuid+".json")
+	filePath := filepath.Join(dataDir, uuid+".json")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
