@@ -3,7 +3,6 @@ package handlers
 import (
 	"cookiecloud/internal/crypto"
 	"cookiecloud/internal/storage"
-	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
