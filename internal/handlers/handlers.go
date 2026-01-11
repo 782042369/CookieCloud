@@ -8,6 +8,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Handlers 处理器集合，持有依赖的存储实例
+type Handlers struct {
+	store *storage.Storage
+}
+
+// New 创建一个新的 Handlers 实例（依赖注入 storage）
+func New(store *storage.Storage) *Handlers {
+	return &Handlers{
+		store: store,
+	}
+}
+
 // FiberRootHandler 根路径处理器，返回欢迎信息
 func FiberRootHandler(apiRoot string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -22,7 +34,7 @@ type UpdateRequest struct {
 }
 
 // FiberUpdateHandler 处理更新请求，保存加密数据
-func FiberUpdateHandler(c *fiber.Ctx) error {
+func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -37,7 +49,7 @@ func FiberUpdateHandler(c *fiber.Ctx) error {
 	}
 
 	// 保存加密数据到文件
-	if err := storage.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
+	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
 		log.Printf("[ERROR] 文件写入失败: %v | UUID: %s | IP: %s\n", err, req.UUID, c.IP())
 		return sendErrorResponse(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data: "+err.Error())
 	}
@@ -54,7 +66,7 @@ type DecryptRequest struct {
 }
 
 // FiberGetHandler 处理获取数据请求
-func FiberGetHandler(c *fiber.Ctx) error {
+func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 
 	// 验证必填字段
@@ -64,7 +76,7 @@ func FiberGetHandler(c *fiber.Ctx) error {
 	}
 
 	// 从文件获取加密数据
-	data, err := storage.LoadEncryptedData(uuid)
+	data, err := h.store.LoadEncryptedData(uuid)
 	if err != nil {
 		log.Printf("[WARN] 数据不存在 | UUID: %s | IP: %s\n", uuid, c.IP())
 		return sendErrorResponse(c, fiber.StatusNotFound, "Not Found: data not found for uuid")

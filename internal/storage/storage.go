@@ -8,39 +8,45 @@ import (
 	"sync"
 )
 
-var (
-	dataDir = "./data" // 默认数据目录
-	fileLocks sync.Map // 文件锁映射
-)
-
 // CookieData Cookie数据结构
 type CookieData struct {
 	Encrypted string `json:"encrypted"`
 }
 
-// InitDataDir 初始化数据目录
-func InitDataDir(dir string) error {
-	dataDir = dir
+// Storage 数据存储管理器，持有配置和状态
+type Storage struct {
+	dataDir   string       // 数据目录路径
+	fileLocks sync.Map     // 文件锁映射（每个UUID一个锁）
+}
+
+// New 创建一个新的 Storage 实例（依赖注入配置）
+func New(dataDir string) (*Storage, error) {
+	// 检查并创建数据目录
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		return os.Mkdir(dataDir, 0755)
+		if err := os.Mkdir(dataDir, 0755); err != nil {
+			return nil, fmt.Errorf("无法创建数据目录 %s: %w", dataDir, err)
+		}
 	}
-	return nil
+
+	return &Storage{
+		dataDir: dataDir,
+	}, nil
 }
 
 // getFileLock 获取指定UUID的文件锁
-func getFileLock(uuid string) *sync.Mutex {
-	lock, _ := fileLocks.LoadOrStore(uuid, &sync.Mutex{})
+func (s *Storage) getFileLock(uuid string) *sync.Mutex {
+	lock, _ := s.fileLocks.LoadOrStore(uuid, &sync.Mutex{})
 	return lock.(*sync.Mutex)
 }
 
 // SaveEncryptedData 保存加密数据到指定UUID的文件中
-func SaveEncryptedData(uuid, encrypted string) error {
+func (s *Storage) SaveEncryptedData(uuid, encrypted string) error {
 	// 获取文件锁
-	lock := getFileLock(uuid)
+	lock := s.getFileLock(uuid)
 	lock.Lock()
 	defer lock.Unlock()
 
-	filePath := filepath.Join(dataDir, uuid+".json")
+	filePath := filepath.Join(s.dataDir, uuid+".json")
 
 	// 创建CookieData结构体实例
 	cookieData := CookieData{
@@ -62,8 +68,8 @@ func SaveEncryptedData(uuid, encrypted string) error {
 }
 
 // LoadEncryptedData 从指定UUID的文件中加载加密数据
-func LoadEncryptedData(uuid string) (*CookieData, error) {
-	filePath := filepath.Join(dataDir, uuid+".json")
+func (s *Storage) LoadEncryptedData(uuid string) (*CookieData, error) {
+	filePath := filepath.Join(s.dataDir, uuid+".json")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {

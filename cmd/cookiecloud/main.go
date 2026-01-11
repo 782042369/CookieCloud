@@ -26,10 +26,14 @@ func main() {
 	log.Printf("[INFO] API 路径: %s\n", cfg.APIRoot)
 	log.Printf("[INFO] 数据目录: %s\n", cfg.DataDir)
 
-	// 创建数据目录
-	if err := storage.InitDataDir(cfg.DataDir); err != nil {
-		log.Fatalf("[ERROR] 无法初始化数据目录: %v\n", err)
+	// 创建 storage 实例（依赖注入配置）
+	store, err := storage.New(cfg.DataDir)
+	if err != nil {
+		log.Fatalf("[ERROR] 无法初始化存储: %v\n", err)
 	}
+
+	// 创建 handlers 实例（依赖注入 storage）
+	h := handlers.New(store)
 
 	// 创建Fiber应用
 	app := fiber.New()
@@ -38,7 +42,7 @@ func main() {
 	app.Use(cors.New())
 
 	// 注册路由
-	registerRoutes(app, cfg.APIRoot)
+	registerRoutes(app, h, cfg.APIRoot)
 
 	// 启动服务器
 	log.Printf("[INFO] 服务器监听: http://localhost:%s%s\n", cfg.Port, cfg.APIRoot)
@@ -68,15 +72,15 @@ func main() {
 }
 
 // registerRoutes 注册所有路由
-func registerRoutes(app *fiber.App, apiRoot string) {
+func registerRoutes(app *fiber.App, h *handlers.Handlers, apiRoot string) {
 	// 根路径处理器
 	app.Get(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
 	app.Post(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
 
 	// 更新数据处理器
-	app.Post(apiRoot+"/update", handlers.FiberUpdateHandler)
+	app.Post(apiRoot+"/update", h.FiberUpdateHandler)
 
 	// 获取数据处理器
-	app.Get(apiRoot+"/get/:uuid", handlers.FiberGetHandler)
-	app.Post(apiRoot+"/get/:uuid", handlers.FiberGetHandler)
+	app.Get(apiRoot+"/get/:uuid", h.FiberGetHandler)
+	app.Post(apiRoot+"/get/:uuid", h.FiberGetHandler)
 }
