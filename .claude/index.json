@@ -4,7 +4,7 @@
     "description": "CookieCloud 服务端接口 Go 语言实现版本（小型项目）",
     "language": "Go",
     "version": "1.0.0",
-    "last_scan": "2026-01-12T09:24:23+08:00",
+    "last_scan": "2026-01-12T09:47:03+08:00",
     "scanner_version": "1.0.0",
     "last_commit": "6c73048"
   },
@@ -18,7 +18,7 @@
     "test_coverage": 72.6,
     "test_count": 63,
     "truncated": false,
-    "project_type": "小型项目（不需要集成测试）"
+    "project_type": "小型项目（只需要单元测试和 golangci-lint）"
   },
   "modules": [
     {
@@ -390,7 +390,7 @@
       "高测试覆盖率（72.6%）",
       "代码质量检查（golangci-lint）"
     ],
-    "dependency_tree": "main → config → storage → handlers → crypto",
+    "dependency_tree": "main -> config -> storage -> handlers -> crypto",
     "test_coverage": {
       "config": 100.0,
       "crypto": 93.5,
@@ -428,17 +428,12 @@
     {
       "path": "Dockerfile",
       "type": "docker",
-      "description": "多阶段 Docker 构建配置（golang:alpine → scratch）"
+      "description": "多阶段 Docker 构建配置（golang:alpine -> scratch）"
     },
     {
       "path": ".golangci.yml",
       "type": "code_quality",
       "description": "golangci-lint 配置文件（13个检查器）"
-    },
-    {
-      "path": ".github/workflows/docker-image.yml",
-      "type": "github_actions",
-      "description": "CI/CD Docker 镜像构建流程"
     },
     {
       "path": ".gitignore",
@@ -495,40 +490,15 @@
   "gaps_summary": {
     "critical": [],
     "high": [],
-    "medium": [
-      "缺少配置文件示例（.env.example）",
-      "缺少 Makefile"
-    ],
-    "low": [
-      "缺少 API 文档（OpenAPI/Swagger）",
-      "缺少 CI/CD 测试流程"
-    ]
+    "medium": [],
+    "low": []
   },
   "recommendations": {
     "immediate": [],
-    "short_term": [
-      "创建 .env.example 配置示例",
-      "添加 Makefile 简化开发流程"
-    ],
-    "long_term": [
-      "添加 API 文档（OpenAPI 规范）",
-      "添加 CI/CD 测试流程"
-    ]
+    "short_term": [],
+    "long_term": []
   },
-  "next_steps": [
-    {
-      "priority": "medium",
-      "action": "添加配置文件",
-      "target": "项目根目录",
-      "description": "创建 .env.example 配置示例文件"
-    },
-    {
-      "priority": "medium",
-      "action": "添加构建工具",
-      "target": "项目根目录",
-      "description": "创建 Makefile 包含 build、test、run、clean 等命令"
-    }
-  ],
+  "next_steps": [],
   "test_summary": {
     "total_tests": 63,
     "overall_coverage": 72.6,
