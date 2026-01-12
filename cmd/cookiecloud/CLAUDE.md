@@ -234,19 +234,18 @@ go func() {
 
 ## 依赖关系图
 
-```mermaid
-graph TD
-    A["main.go"] --> B["storage.InitDataDir()"]
-    A --> C["fiber.New()"]
-    A --> D["registerRoutes()"]
-    A --> E["app.Listen()"]
+```
+main.go
+  ├─→ storage.New() - 创建存储实例
+  ├─→ handlers.New() - 创建处理器实例
+  ├─→ fiber.New() - 创建 Fiber 应用
+  ├─→ registerRoutes() - 注册路由
+  └─→ app.Listen() - 启动 HTTP 服务
 
-    D --> F["handlers.FiberRootHandler()"]
-    D --> G["handlers.FiberUpdateHandler()"]
-    D --> H["handlers.FiberGetHandler()"]
-
-    B --> I["创建 ./data 目录"]
-    C --> J["配置 CORS 中间件"]
+registerRoutes()
+  ├─→ handlers.FiberRootHandler() - 根路径
+  ├─→ handlers.FiberUpdateHandler() - 更新数据
+  └─→ handlers.FiberGetHandler() - 获取数据
 ```
 
 ---

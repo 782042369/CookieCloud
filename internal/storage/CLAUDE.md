@@ -136,17 +136,6 @@ CookieCloud/
 - **文件锁保护**：同一个 UUID 的并发写入有锁保护
 
 ### 数据流
-```mermaid
-graph LR
-    A[Handler] -->|保存| B[SaveEncryptedData]
-    B -->|序列化| C[JSON Marshal]
-    C -->|写入| D[{uuid}.json]
-
-    A -->|加载| E[LoadEncryptedData]
-    E -->|读取| D
-    D -->|反序列化| F[JSON Unmarshal]
-    F -->|返回| A
-```
 
 ---
 

@@ -73,19 +73,6 @@ Base64(
 
 ### 解密流程
 
-```mermaid
-graph TD
-    A[输入: uuid, encrypted, password] --> B[生成密钥]
-    B --> C[MD5 uuid-password 取前16字节]
-    C --> D[Base64 解码]
-    D --> E{验证格式}
-    E -->|无效| F[返回空JSON]
-    E -->|有效| G[提取盐值和密文]
-    G --> H[EVP_BytesToKey 派生密钥和IV]
-    H --> I[AES-256-CBC 解密]
-    I --> J[移除 PKCS7 填充]
-    J --> K[返回明文]
-```
 
 ---
 

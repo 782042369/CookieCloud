@@ -211,41 +211,8 @@ FiberGetHandler
 ## 业务流程
 
 ### 更新数据流程
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Handler
-    participant Storage
-
-    Client->>Handler: POST /update (uuid, encrypted)
-    Handler->>Handler: 解析 JSON
-    Handler->>Handler: 验证必填字段
-    Handler->>Storage: SaveEncryptedData(uuid, encrypted)
-    Storage-->>Handler: nil/error
-    Handler-->>Client: 200 OK / 500 Error
-```
 
 ### 获取数据流程
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Handler
-    participant Storage
-    participant Crypto
-
-    Client->>Handler: GET/POST /get/:uuid
-    Handler->>Handler: 验证 UUID
-    Handler->>Storage: LoadEncryptedData(uuid)
-    Storage-->>Handler: CookieData / error
-
-    alt POST 请求 + 有密码
-        Handler->>Crypto: Decrypt(uuid, encrypted, password)
-        Crypto-->>Handler: 解密数据
-        Handler-->>Client: 200 OK (解密数据)
-    else GET 请求或无密码
-        Handler-->>Client: 200 OK (加密数据)
-    end
-```
 
 ---
 
