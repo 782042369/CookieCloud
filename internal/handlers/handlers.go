@@ -1,9 +1,12 @@
+// Package handlers 提供 HTTP 请求处理功能
+// 包含路由处理器、请求验证和响应格式化
 package handlers
 
 import (
+	"log"
+
 	"cookiecloud/internal/crypto"
 	"cookiecloud/internal/storage"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 )

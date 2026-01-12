@@ -1,3 +1,5 @@
+// Package storage 提供数据持久化功能
+// 使用 JSON 文件存储加密数据，支持并发安全的文件读写
 package storage
 
 import (
@@ -15,22 +17,17 @@ type CookieData struct {
 
 // Storage 数据存储管理器，持有配置和状态
 type Storage struct {
-	dataDir   string       // 数据目录路径
-	fileLocks sync.Map     // 文件锁映射（每个UUID一个锁）
+	dataDir   string   // 数据目录路径
+	fileLocks sync.Map // 文件锁映射（每个UUID一个锁）
 }
 
 // New 创建一个新的 Storage 实例（依赖注入配置）
 func New(dataDir string) (*Storage, error) {
-	// 检查并创建数据目录
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		if err := os.Mkdir(dataDir, 0755); err != nil {
-			return nil, fmt.Errorf("无法创建数据目录 %s: %w", dataDir, err)
-		}
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, fmt.Errorf("无法创建数据目录 %s: %w", dataDir, err)
 	}
 
-	return &Storage{
-		dataDir: dataDir,
-	}, nil
+	return &Storage{dataDir: dataDir}, nil
 }
 
 // getFileLock 获取指定UUID的文件锁
@@ -71,21 +68,14 @@ func (s *Storage) SaveEncryptedData(uuid, encrypted string) error {
 func (s *Storage) LoadEncryptedData(uuid string) (*CookieData, error) {
 	filePath := filepath.Join(s.dataDir, uuid+".json")
 
-	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, err
-	}
-
-	// 读取文件内容
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// 解析JSON数据
 	var cookieData CookieData
 	if err := json.Unmarshal(data, &cookieData); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal cookie data: %w", err)
 	}
 
 	return &cookieData, nil

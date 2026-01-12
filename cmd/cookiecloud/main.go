@@ -1,3 +1,5 @@
+// Package main 是 CookieCloud 应用的入口
+// 负责初始化 Web 服务器、注册路由和启动 HTTP 服务
 package main
 
 import (
@@ -45,30 +47,33 @@ func main() {
 	registerRoutes(app, h, cfg.APIRoot)
 
 	// 启动服务器
-	log.Printf("[INFO] 服务器监听: http://localhost:%s%s\n", cfg.Port, cfg.APIRoot)
+	log.Printf("[INFO] 服务器监听: http://localhost:%s%s", cfg.Port, cfg.APIRoot)
 
-	// 设置优雅关闭
+	// 优雅关闭处理
+	go setupGracefulShutdown(app)
+
+	if err := app.Listen(":" + cfg.Port); err != nil {
+		log.Fatalf("[ERROR] 启动失败: %v", err)
+	}
+}
+
+// setupGracefulShutdown 配置优雅关闭
+func setupGracefulShutdown(app *fiber.App) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	go func() {
-		<-c
-		log.Println("\n[INFO] 收到关闭信号，正在优雅关闭...")
+	<-c
+	log.Println("[INFO] 收到关闭信号，正在优雅关闭...")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		if err := app.ShutdownWithContext(ctx); err != nil {
-			log.Printf("[ERROR] 关闭失败: %v\n", err)
-		}
-
-		log.Println("[INFO] 服务器已关闭")
-		os.Exit(0)
-	}()
-
-	if err := app.Listen(":" + cfg.Port); err != nil {
-		log.Fatalf("[ERROR] 启动失败: %v\n", err)
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		log.Printf("[ERROR] 关闭失败: %v", err)
 	}
+
+	log.Println("[INFO] 服务器已关闭")
+	os.Exit(0)
 }
 
 // registerRoutes 注册所有路由

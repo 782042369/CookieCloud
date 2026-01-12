@@ -1,3 +1,5 @@
+// Package crypto 提供加密解密功能
+// 兼容 CryptoJS 的 AES-256-CBC 加密算法和 EVP_BytesToKey 密钥派生
 package crypto
 
 import (
@@ -10,20 +12,20 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"io"
 	"strings"
 )
 
 const (
 	pkcs5SaltLen = 8
 	aes256KeyLen = 32
+	aesBlockLen  = 16
 )
 
 // Decrypt 解密Cookie数据
 // 用UUID和密码生成密钥，然后解密数据
 func Decrypt(uuid, encrypted, password string) []byte {
 	// 生成密钥：用MD5哈希(UUID + "-" + 密码)的前16个字符
-	theKey := md5String(uuid+"-"+password)[:16]
+	theKey := md5String(uuid + "-" + password)[:16]
 
 	// 解密数据
 	decrypted, err := decryptCryptoJsAesMsg(theKey, encrypted)
@@ -41,9 +43,6 @@ func Decrypt(uuid, encrypted, password string) []byte {
 // CryptoJS用OpenSSL兼容的EVP_BytesToKey从密码和盐值派生密钥和IV
 // 用MD5做哈希，密钥32字节，IV 16字节
 func decryptCryptoJsAesMsg(password string, ciphertext string) ([]byte, error) {
-	const keylen = 32
-	const blocklen = 16
-
 	// Base64解码密文
 	rawEncrypted, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
@@ -51,7 +50,7 @@ func decryptCryptoJsAesMsg(password string, ciphertext string) ([]byte, error) {
 	}
 
 	// 验证密文格式对不对
-	if len(rawEncrypted) < 17 || len(rawEncrypted)%blocklen != 0 || string(rawEncrypted[:8]) != "Salted__" {
+	if len(rawEncrypted) < 17 || len(rawEncrypted)%aesBlockLen != 0 || string(rawEncrypted[:8]) != "Salted__" {
 		return nil, fmt.Errorf("invalid ciphertext")
 	}
 
@@ -60,7 +59,7 @@ func decryptCryptoJsAesMsg(password string, ciphertext string) ([]byte, error) {
 	encrypted := rawEncrypted[16:]
 
 	// 从密码和盐值派生密钥和IV
-	key, iv := bytesToKey(salt, []byte(password), md5.New(), keylen, blocklen)
+	key, iv := bytesToKey(salt, []byte(password), md5.New(), aes256KeyLen, aesBlockLen)
 
 	// 创建AES解密器
 	newCipher, err := aes.NewCipher(key)
@@ -74,7 +73,7 @@ func decryptCryptoJsAesMsg(password string, ciphertext string) ([]byte, error) {
 	cfbdec.CryptBlocks(decrypted, encrypted)
 
 	// 去掉PKCS7填充
-	decrypted, err = pkcs7strip(decrypted, blocklen)
+	decrypted, err = pkcs7strip(decrypted, aesBlockLen)
 	if err != nil {
 		return nil, fmt.Errorf("failed to strip pkcs7 paddings (password may be incorrect): %v", err)
 	}
@@ -111,11 +110,11 @@ func bytesToKey(salt, data []byte, h hash.Hash, keyLen, blockLen int) (key, iv [
 
 // md5String 返回字符串的MD5哈希值（十六进制，小写）
 func md5String(inputs ...string) string {
-	keyHash := md5.New()
-	for _, str := range inputs {
-		io.WriteString(keyHash, str)
+	h := md5.New()
+	for _, s := range inputs {
+		h.Write([]byte(s))
 	}
-	return hex.EncodeToString(keyHash.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // pkcs7strip 去掉pkcs7填充
