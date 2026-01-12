@@ -21,94 +21,80 @@ const (
 	aesBlockLen  = 16
 )
 
-// Decrypt 解密Cookie数据
-// 用UUID和密码生成密钥，然后解密数据
+// Decrypt 解密 Cookie 数据
+// 用 UUID 和密码生成密钥，然后解密数据
 func Decrypt(uuid, encrypted, password string) []byte {
-	// 生成密钥：用MD5哈希(UUID + "-" + 密码)的前16个字符
-	theKey := md5String(uuid + "-" + password)[:16]
+	key := md5String(uuid + "-" + password)[:16]
 
-	// 解密数据
-	decrypted, err := decryptCryptoJsAesMsg(theKey, encrypted)
+	decrypted, err := decryptCryptoJsAesMsg(key, encrypted)
 	if err != nil {
-		// 解密失败就返回空的JSON对象
 		return []byte("{}")
 	}
 	return decrypted
 }
 
-// decryptCryptoJsAesMsg 解密CryptoJS加密的消息
-// CryptoJS.AES.encrypt()出来的东西是这种格式：
-// "Salted__" + [8字节随机盐值] + [实际密文]
-// 实际密文用Pkcs7填充对齐块长度
-// CryptoJS用OpenSSL兼容的EVP_BytesToKey从密码和盐值派生密钥和IV
-// 用MD5做哈希，密钥32字节，IV 16字节
-func decryptCryptoJsAesMsg(password string, ciphertext string) ([]byte, error) {
-	// Base64解码密文
+// decryptCryptoJsAesMsg 解密 CryptoJS 加密的消息
+//
+// CryptoJS.AES.encrypt() 输出格式：
+// "Salted__" + [8字节盐值] + [PKCS7填充的密文]
+//
+// 使用 OpenSSL 兼容的 EVP_BytesToKey 从密码和盐值派生密钥和 IV
+// 哈希算法：MD5，密钥长度：32字节，IV长度：16字节
+func decryptCryptoJsAesMsg(password, ciphertext string) ([]byte, error) {
 	rawEncrypted, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode Encrypted: %v", err)
+		return nil, fmt.Errorf("base64 decode failed: %v", err)
 	}
 
-	// 验证密文格式对不对
 	if len(rawEncrypted) < 17 || len(rawEncrypted)%aesBlockLen != 0 || string(rawEncrypted[:8]) != "Salted__" {
-		return nil, fmt.Errorf("invalid ciphertext")
+		return nil, fmt.Errorf("invalid ciphertext format")
 	}
 
-	// 提取盐值和实际密文
 	salt := rawEncrypted[8:16]
 	encrypted := rawEncrypted[16:]
 
-	// 从密码和盐值派生密钥和IV
 	key, iv := bytesToKey(salt, []byte(password), md5.New(), aes256KeyLen, aesBlockLen)
 
-	// 创建AES解密器
-	newCipher, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create aes cipher: %v", err)
+		return nil, fmt.Errorf("aes cipher creation failed: %v", err)
 	}
 
-	// 用CBC模式解密
-	cfbdec := cipher.NewCBCDecrypter(newCipher, iv)
+	cbc := cipher.NewCBCDecrypter(block, iv)
 	decrypted := make([]byte, len(encrypted))
-	cfbdec.CryptBlocks(decrypted, encrypted)
+	cbc.CryptBlocks(decrypted, encrypted)
 
-	// 去掉PKCS7填充
 	decrypted, err = pkcs7strip(decrypted, aesBlockLen)
 	if err != nil {
-		return nil, fmt.Errorf("failed to strip pkcs7 paddings (password may be incorrect): %v", err)
+		return nil, fmt.Errorf("pkcs7 strip failed (password may be incorrect): %v", err)
 	}
 
 	return decrypted, nil
 }
 
-// bytesToKey 实现OpenSSL EVP_BytesToKey逻辑
-// 接受盐值、数据、哈希类型和密钥/块长度
-// 跟C语言的openssl方法一样
+// bytesToKey 实现 OpenSSL EVP_BytesToKey 密钥派生算法
 func bytesToKey(salt, data []byte, h hash.Hash, keyLen, blockLen int) (key, iv []byte) {
-	saltLen := len(salt)
-	if saltLen > 0 && saltLen != pkcs5SaltLen {
-		panic(fmt.Sprintf("Salt length is %d, expected %d", saltLen, pkcs5SaltLen))
+	if len(salt) > 0 && len(salt) != pkcs5SaltLen {
+		panic(fmt.Sprintf("salt length %d, expected %d", len(salt), pkcs5SaltLen))
 	}
 
 	var (
-		concat   []byte
+		result   []byte
 		lastHash []byte
 		totalLen = keyLen + blockLen
 	)
 
-	for ; len(concat) < totalLen; h.Reset() {
-		// 把lastHash、data和salt拼起来写进哈希
+	for len(result) < totalLen {
+		h.Reset()
 		h.Write(append(lastHash, append(data, salt...)...))
-		// 传nil给Sum()返回当前哈希值
 		lastHash = h.Sum(nil)
-		// 把lastHash加到concat后面
-		concat = append(concat, lastHash...)
+		result = append(result, lastHash...)
 	}
 
-	return concat[:keyLen], concat[keyLen:totalLen]
+	return result[:keyLen], result[keyLen:totalLen]
 }
 
-// md5String 返回字符串的MD5哈希值（十六进制，小写）
+// md5String 计算字符串的 MD5 哈希值（十六进制格式）
 func md5String(inputs ...string) string {
 	h := md5.New()
 	for _, s := range inputs {
@@ -117,19 +103,25 @@ func md5String(inputs ...string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// pkcs7strip 去掉pkcs7填充
+// pkcs7strip 移除 PKCS7 填充
 func pkcs7strip(data []byte, blockSize int) ([]byte, error) {
 	length := len(data)
 	if length == 0 {
-		return nil, errors.New("pkcs7: Data is empty")
+		return nil, errors.New("pkcs7: data is empty")
 	}
 	if length%blockSize != 0 {
-		return nil, errors.New("pkcs7: Data is not block-aligned")
+		return nil, errors.New("pkcs7: data is not block-aligned")
 	}
+
 	padLen := int(data[length-1])
-	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
-	if padLen > blockSize || padLen == 0 || !strings.HasSuffix(string(data), string(ref)) {
-		return nil, errors.New("pkcs7: Invalid padding")
+	if padLen > blockSize || padLen == 0 {
+		return nil, errors.New("pkcs7: invalid padding length")
 	}
+
+	expected := bytes.Repeat([]byte{byte(padLen)}, padLen)
+	if !strings.HasSuffix(string(data), string(expected)) {
+		return nil, errors.New("pkcs7: invalid padding")
+	}
+
 	return data[:length-padLen], nil
 }

@@ -18,9 +18,7 @@ type Handlers struct {
 
 // New 创建一个新的 Handlers 实例（依赖注入 storage）
 func New(store *storage.Storage) *Handlers {
-	return &Handlers{
-		store: store,
-	}
+	return &Handlers{store: store}
 }
 
 // FiberRootHandler 根路径处理器，返回欢迎信息
@@ -41,26 +39,21 @@ func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
 
 	if err := c.BodyParser(&req); err != nil {
-		log.Printf("[ERROR] JSON 解析失败: %v | 路径: %s | IP: %s\n", err, c.Path(), c.IP())
+		logRequestError(c, "JSON 解析失败", err)
 		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 	}
 
-	// 验证必填字段
 	if req.Encrypted == "" || req.UUID == "" {
-		log.Printf("[WARN] 参数缺失 | 路径: %s | IP: %s | 缺少字段: encrypted, uuid\n", c.Path(), c.IP())
+		logWarn(c, "参数缺失", "encrypted, uuid")
 		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: both 'encrypted' and 'uuid' fields are required")
 	}
 
-	// 保存加密数据到文件
 	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
-		log.Printf("[ERROR] 文件写入失败: %v | UUID: %s | IP: %s\n", err, req.UUID, c.IP())
+		logRequestError(c, "文件写入失败", err)
 		return sendErrorResponse(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data: "+err.Error())
 	}
 
-	// 返回成功响应
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"action": "done",
-	})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"action": "done"})
 }
 
 // DecryptRequest 解密请求的数据结构
@@ -72,36 +65,31 @@ type DecryptRequest struct {
 func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 
-	// 验证必填字段
 	if uuid == "" {
-		log.Printf("[WARN] 参数缺失 | 路径: %s | IP: %s | 缺少字段: uuid\n", c.Path(), c.IP())
+		logWarn(c, "参数缺失", "uuid")
 		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: 'uuid' is required")
 	}
 
-	// 从文件获取加密数据
 	data, err := h.store.LoadEncryptedData(uuid)
 	if err != nil {
-		log.Printf("[WARN] 数据不存在 | UUID: %s | IP: %s\n", uuid, c.IP())
+		logWarn(c, "数据不存在", uuid)
 		return sendErrorResponse(c, fiber.StatusNotFound, "Not Found: data not found for uuid")
 	}
 
-	// 如果是POST请求且提供了密码，就解密后返回数据
 	if c.Method() == "POST" {
 		var req DecryptRequest
 		if err := c.BodyParser(&req); err != nil {
-			log.Printf("[ERROR] JSON 解析失败: %v | 路径: %s | IP: %s\n", err, c.Path(), c.IP())
+			logRequestError(c, "JSON 解析失败", err)
 			return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 		}
 
 		if req.Password != "" {
-			// 解密数据
 			decrypted := crypto.Decrypt(uuid, data.Encrypted, req.Password)
 			c.Set("Content-Type", "application/json")
 			return c.Send(decrypted)
 		}
 	}
 
-	// 返回加密数据
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
@@ -111,4 +99,14 @@ func sendErrorResponse(ctx *fiber.Ctx, statusCode int, reason string) error {
 		"action": "error",
 		"reason": reason,
 	})
+}
+
+// logRequestError 记录请求错误日志
+func logRequestError(c *fiber.Ctx, msg string, err error) {
+	log.Printf("[ERROR] %s: %v | 路径: %s | IP: %s\n", msg, err, c.Path(), c.IP())
+}
+
+// logWarn 记录警告日志
+func logWarn(c *fiber.Ctx, msg, detail string) {
+	log.Printf("[WARN] %s | 路径: %s | IP: %s | 缺少字段: %s\n", msg, c.Path(), c.IP(), detail)
 }
