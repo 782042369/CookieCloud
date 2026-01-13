@@ -3,9 +3,8 @@
 package handlers
 
 import (
-	"log"
-
 	"cookiecloud/internal/crypto"
+	"cookiecloud/internal/logger"
 	"cookiecloud/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,55 +33,53 @@ type UpdateRequest struct {
 	UUID      string `json:"uuid"`
 }
 
-// FiberUpdateHandler 处理更新请求，保存加密数据
-func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
-	var req UpdateRequest
-
-	if err := c.BodyParser(&req); err != nil {
-		logRequestError(c, "JSON 解析失败", err)
-		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
-	}
-
-	if req.Encrypted == "" || req.UUID == "" {
-		logWarn(c, "参数缺失", "encrypted, uuid")
-		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: both 'encrypted' and 'uuid' fields are required")
-	}
-
-	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
-		logRequestError(c, "文件写入失败", err)
-		return sendErrorResponse(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data: "+err.Error())
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"action": "done"})
-}
-
 // DecryptRequest 解密请求的数据结构
 type DecryptRequest struct {
 	Password string `json:"password"`
 }
 
+// FiberUpdateHandler 处理更新请求，保存加密数据
+func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
+	var req UpdateRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON 解析失败", err)
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
+	}
+
+	if req.Encrypted == "" || req.UUID == "" {
+		logger.Error("参数缺失", "path", c.Path(), "method", c.Method(), "ip", c.IP())
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: both 'encrypted' and 'uuid' fields are required")
+	}
+
+	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
+		logger.RequestError(c.Path(), c.Method(), c.IP(), "文件写入失败", err)
+		return sendError(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data")
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"action": "done"})
+}
+
 // FiberGetHandler 处理获取数据请求
 func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
-
 	if uuid == "" {
-		logWarn(c, "参数缺失", "uuid")
-		return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: 'uuid' is required")
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: 'uuid' is required")
 	}
 
 	data, err := h.store.LoadEncryptedData(uuid)
 	if err != nil {
-		logWarn(c, "数据不存在", uuid)
-		return sendErrorResponse(c, fiber.StatusNotFound, "Not Found: data not found for uuid")
+		logger.Error("数据不存在", "uuid", uuid, "ip", c.IP())
+		return sendError(c, fiber.StatusNotFound, "Not Found: data not found")
 	}
 
+	// POST 请求且提供密码则解密
 	if c.Method() == "POST" {
 		var req DecryptRequest
 		if err := c.BodyParser(&req); err != nil {
-			logRequestError(c, "JSON 解析失败", err)
-			return sendErrorResponse(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
+			logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON 解析失败", err)
+			return sendError(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 		}
-
 		if req.Password != "" {
 			decrypted := crypto.Decrypt(uuid, data.Encrypted, req.Password)
 			c.Set("Content-Type", "application/json")
@@ -90,23 +87,13 @@ func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.Status(fiber.StatusOK).JSON(data)
+	return c.JSON(data)
 }
 
-// sendErrorResponse 统一错误响应处理
-func sendErrorResponse(ctx *fiber.Ctx, statusCode int, reason string) error {
+// sendError 统一错误响应处理
+func sendError(ctx *fiber.Ctx, statusCode int, reason string) error {
 	return ctx.Status(statusCode).JSON(fiber.Map{
 		"action": "error",
 		"reason": reason,
 	})
-}
-
-// logRequestError 记录请求错误日志
-func logRequestError(c *fiber.Ctx, msg string, err error) {
-	log.Printf("[ERROR] %s: %v | 路径: %s | IP: %s\n", msg, err, c.Path(), c.IP())
-}
-
-// logWarn 记录警告日志
-func logWarn(c *fiber.Ctx, msg, detail string) {
-	log.Printf("[WARN] %s | 路径: %s | IP: %s | 缺少字段: %s\n", msg, c.Path(), c.IP(), detail)
 }

@@ -331,7 +331,7 @@ func TestFiberGetHandlerEmptyUUID(t *testing.T) {
 func TestSendErrorResponse(t *testing.T) {
 	app := fiber.New()
 	app.Get("/error", func(c *fiber.Ctx) error {
-		return sendErrorResponse(c, fiber.StatusInternalServerError, "test error message")
+		return sendError(c, fiber.StatusInternalServerError, "test error message")
 	})
 
 	req := httptest.NewRequest("GET", "/error", nil)

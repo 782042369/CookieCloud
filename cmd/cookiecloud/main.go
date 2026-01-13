@@ -15,77 +15,74 @@ import (
 	"cookiecloud/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
-	// 加载配置
 	cfg := config.Load()
 
-	// 打印启动信息
 	log.Println("[INFO] CookieCloud 服务启动")
-	log.Printf("[INFO] 监听端口: %s\n", cfg.Port)
-	log.Printf("[INFO] API 路径: %s\n", cfg.APIRoot)
-	log.Printf("[INFO] 数据目录: %s\n", cfg.DataDir)
+	log.Printf("[INFO] 监听端口: %s, API路径: %s, 数据目录: %s\n", cfg.Port, cfg.APIRoot, cfg.DataDir)
 
-	// 创建 storage 实例（依赖注入配置）
 	store, err := storage.New(cfg.DataDir)
 	if err != nil {
 		log.Fatalf("[ERROR] 无法初始化存储: %v\n", err)
 	}
 
-	// 创建 handlers 实例（依赖注入 storage）
 	h := handlers.New(store)
 
-	// 创建Fiber应用
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit:    0,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	})
 
-	// 添加CORS中间件
-	app.Use(cors.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowMethods:     "GET,POST,OPTIONS",
+		AllowHeaders:     "Content-Type",
+		AllowCredentials: false,
+		MaxAge:           86400,
+	}))
 
-	// 注册路由
+	app.Use(compress.New(compress.Config{
+		Level: compress.LevelBestSpeed,
+	}))
+
 	registerRoutes(app, h, cfg.APIRoot)
 
-	// 启动服务器
 	log.Printf("[INFO] 服务器监听: http://localhost:%s%s", cfg.Port, cfg.APIRoot)
 
-	// 优雅关闭处理
-	go setupGracefulShutdown(app)
+	go setupGracefulShutdown(app, store)
 
 	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("[ERROR] 启动失败: %v", err)
 	}
 }
 
-// setupGracefulShutdown 配置优雅关闭
-func setupGracefulShutdown(app *fiber.App) {
+func setupGracefulShutdown(app *fiber.App, store *storage.Storage) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	<-c
 	log.Println("[INFO] 收到关闭信号，正在优雅关闭...")
 
+	_ = store.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := app.ShutdownWithContext(ctx); err != nil {
-		log.Printf("[ERROR] 关闭失败: %v", err)
-	}
+	_ = app.ShutdownWithContext(ctx)
 
 	log.Println("[INFO] 服务器已关闭")
 	os.Exit(0)
 }
 
-// registerRoutes 注册所有路由
 func registerRoutes(app *fiber.App, h *handlers.Handlers, apiRoot string) {
-	// 根路径处理器
 	app.Get(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
 	app.Post(apiRoot+"/", handlers.FiberRootHandler(apiRoot))
-
-	// 更新数据处理器
 	app.Post(apiRoot+"/update", h.FiberUpdateHandler)
-
-	// 获取数据处理器
 	app.Get(apiRoot+"/get/:uuid", h.FiberGetHandler)
 	app.Post(apiRoot+"/get/:uuid", h.FiberGetHandler)
 }

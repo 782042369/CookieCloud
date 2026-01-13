@@ -12,7 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"strings"
+
+	"cookiecloud/internal/logger"
 )
 
 const (
@@ -24,10 +25,11 @@ const (
 // Decrypt 解密 Cookie 数据
 // 用 UUID 和密码生成密钥，然后解密数据
 func Decrypt(uuid, encrypted, password string) []byte {
-	key := md5String(uuid + "-" + password)[:16]
+	key := md5String(uuid+"-"+password)[:16]
 
 	decrypted, err := decryptCryptoJsAesMsg(key, encrypted)
 	if err != nil {
+		logger.Error("解密失败", "uuid", uuid, "error", err)
 		return []byte("{}")
 	}
 	return decrypted
@@ -43,11 +45,11 @@ func Decrypt(uuid, encrypted, password string) []byte {
 func decryptCryptoJsAesMsg(password, ciphertext string) ([]byte, error) {
 	rawEncrypted, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
-		return nil, fmt.Errorf("base64 decode failed: %v", err)
+		return nil, fmt.Errorf("base64 decode failed: %w", err)
 	}
 
 	if len(rawEncrypted) < 17 || len(rawEncrypted)%aesBlockLen != 0 || string(rawEncrypted[:8]) != "Salted__" {
-		return nil, fmt.Errorf("invalid ciphertext format")
+		return nil, errors.New("invalid ciphertext format")
 	}
 
 	salt := rawEncrypted[8:16]
@@ -57,7 +59,7 @@ func decryptCryptoJsAesMsg(password, ciphertext string) ([]byte, error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("aes cipher creation failed: %v", err)
+		return nil, fmt.Errorf("aes cipher creation failed: %w", err)
 	}
 
 	cbc := cipher.NewCBCDecrypter(block, iv)
@@ -66,7 +68,7 @@ func decryptCryptoJsAesMsg(password, ciphertext string) ([]byte, error) {
 
 	decrypted, err = pkcs7strip(decrypted, aesBlockLen)
 	if err != nil {
-		return nil, fmt.Errorf("pkcs7 strip failed (password may be incorrect): %v", err)
+		return nil, fmt.Errorf("pkcs7 strip failed (password may be incorrect): %w", err)
 	}
 
 	return decrypted, nil
@@ -119,7 +121,7 @@ func pkcs7strip(data []byte, blockSize int) ([]byte, error) {
 	}
 
 	expected := bytes.Repeat([]byte{byte(padLen)}, padLen)
-	if !strings.HasSuffix(string(data), string(expected)) {
+	if !bytes.HasSuffix(data, expected) {
 		return nil, errors.New("pkcs7: invalid padding")
 	}
 
