@@ -1,8 +1,14 @@
 # CookieCloud Go 版本 - 项目文档
 
-> 最后更新：2026-01-12 09:47:03
+> 最后更新：2026-01-13
 
 ## 变更记录
+
+### 2026-01-13
+- 新增 internal/logger 模块文档
+- 添加 Mermaid 模块结构图
+- 更新模块索引，添加 logger 模块
+- 完善文档导航结构
 
 ### 2026-01-12 09:47:03
 - 简化文档，移除不必要的 CI/CD 内容
@@ -37,6 +43,42 @@ CookieCloud 原本是 easychen 用 Node.js 写的一个 Cookie 和 LocalStorage 
 
 ---
 
+## 模块结构图
+
+```mermaid
+graph TD
+    Root["CookieCloud Go<br/>(项目根)"] --> Cmd["cmd/<br/>应用入口"];
+    Root --> Internal["internal/<br/>内部模块"];
+
+    Cmd --> Main["cookiecloud/<br/>main.go"];
+
+    Internal --> Config["config/<br/>配置管理"];
+    Internal --> Handlers["handlers/<br/>HTTP处理"];
+    Internal --> Storage["storage/<br/>数据存储"];
+    Internal --> Crypto["crypto/<br/>加密解密"];
+    Internal --> Logger["logger/<br/>日志记录"];
+
+    Config --> |"配置"| Handlers;
+    Storage --> |"依赖注入"| Handlers;
+    Crypto --> |"解密"| Handlers;
+    Logger --> |"日志"| Handlers;
+    Logger --> |"日志"| Crypto;
+
+    click Main "./cmd/cookiecloud/CLAUDE.md" "查看 main 模块文档"
+    click Config "./internal/config/CLAUDE.md" "查看 config 模块文档"
+    click Handlers "./internal/handlers/CLAUDE.md" "查看 handlers 模块文档"
+    click Storage "./internal/storage/CLAUDE.md" "查看 storage 模块文档"
+    click Crypto "./internal/crypto/CLAUDE.md" "查看 crypto 模块文档"
+    click Logger "./internal/logger/CLAUDE.md" "查看 logger 模块文档"
+
+    style Root fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    style Cmd fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    style Internal fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style Main fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+```
+
+---
+
 ## 代码结构
 
 ```
@@ -54,6 +96,9 @@ CookieCloud/
 │   ├── handlers/
 │   │   ├── handlers.go      # HTTP 处理器
 │   │   └── handlers_test.go # 单元测试
+│   ├── logger/
+│   │   ├── logger.go        # 日志记录
+│   │   └── logger_test.go   # 单元测试
 │   └── storage/
 │       ├── storage.go       # 数据存储
 │       └── storage_test.go  # 单元测试
@@ -73,6 +118,35 @@ CookieCloud/
 | `internal/handlers` | HTTP 请求处理 | `handlers.go` | 87.9% | [查看](./internal/handlers/CLAUDE.md) |
 | `internal/storage` | 数据持久化 | `storage.go` | 91.7% | [查看](./internal/storage/CLAUDE.md) |
 | `internal/crypto` | 加密解密 | `crypto.go` | 93.5% | [查看](./internal/crypto/CLAUDE.md) |
+| `internal/logger` | 日志记录 | `logger.go` | - | [查看](./internal/logger/CLAUDE.md) |
+
+---
+
+## 架构设计
+
+### 设计模式
+- **依赖注入**：通过构造函数注入依赖，零全局变量
+- **分层架构**：清晰的职责分离（配置 → 存储 → 处理 → 加密）
+- **接口隔离**：每个模块只暴露必要的接口
+
+### 数据流
+```
+客户端请求
+  ↓
+Fiber 路由 (cmd/main.go)
+  ↓
+Handlers (handlers/)
+  ↓
+Storage (storage/) + Crypto (crypto/)
+  ↓
+JSON 文件 (data/)
+```
+
+### 关键特性
+- **零知识架构**：客户端加密，服务端只存储密文
+- **并发安全**：使用 sync.Map 实现文件锁
+- **优雅关闭**：信号处理 + 30秒超时
+- **结构化日志**：key-value 格式，易于解析
 
 ---
 
@@ -180,7 +254,7 @@ go test -bench=. -benchmem ./...
 - **gofmt**：代码格式化
 
 ### 配置文件
-`.golangci.yml` - 启用了 13 个检查器
+`.golangci.yml` - 启用了 8 个检查器
 
 ```bash
 # 运行代码检查
@@ -252,9 +326,9 @@ gofmt -w -s .
 
 ---
 
-## 扫描统计（2026-01-12 09:47:03）
+## 扫描统计（2026-01-13）
 
-- **源代码文件**：9 个（5 个实现 + 4 个测试）
+- **源代码文件**：11 个（6 个实现 + 5 个测试）
 - **测试覆盖率**：72.6%
 - **测试数量**：63 个
 - **代码质量**：已配置 golangci-lint
@@ -266,9 +340,10 @@ gofmt -w -s .
 | internal/crypto | 16 | 93.5% | 完成 |
 | internal/storage | 20 | 91.7% | 完成 |
 | internal/handlers | 23 | 87.9% | 完成 |
+| internal/logger | 0 | - | 待完善 |
 
 ---
 
 **文档生成**：Claude AI 架构助手
-**生成时间**：2026-01-12 09:47:03
-**项目版本**：基于 master 分支
+**生成时间**：2026-01-13
+**项目版本**：基于 master 分支 (commit: a9c2c8a)

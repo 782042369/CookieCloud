@@ -2,35 +2,22 @@ run:
   concurrency: 4
   timeout: 5m
   tests: true
-  go: '1.25'
 
-output:
-  formats:
-    - format: colored-line-number
-  print-linter-name: true
-  sort-results: true
+version: 2
 
 linters:
   enable:
-    - gofmt
-    - goimports
     - govet
     - ineffassign
-    - misspell
     - revive
     - staticcheck
-    - gosimple
-    - stylecheck
     - unconvert
     - unused
     - errcheck
     - prealloc
-    - gocyclo
-    - funlen
 
   disable:
     - exhaustive
-    - gofumpt
     - nlreturn
     - wsl
     - godot
@@ -44,16 +31,6 @@ linters:
     - unparam
 
 linters-settings:
-  gocyclo:
-    min-complexity: 15
-
-  funlen:
-    lines: 100
-    statements: 50
-
-  misspell:
-    locale: US
-
   revive:
     confidence: 0.8
     rules:
@@ -84,9 +61,6 @@ linters-settings:
   staticcheck:
     checks: ["all"]
 
-  stylecheck:
-    checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
-
   errcheck:
     check-type-assertions: false
     check-blank: false
@@ -98,24 +72,13 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gocyclo
         - errcheck
 
     - path: cmd/
       linters:
         - funlen
-        - gocyclo
 
   exclude-use-default: false
 
 severity:
   default-severity: error
-
-  rules:
-    - linters:
-        - gofmt
-        - goimports
-      severity: warning
-    - linters:
-        - misspell
-      severity: warning

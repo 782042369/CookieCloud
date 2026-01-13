@@ -4,15 +4,15 @@
     "description": "CookieCloud 服务端接口 Go 语言实现版本（小型项目）",
     "language": "Go",
     "version": "1.0.0",
-    "last_scan": "2026-01-12T09:47:03+08:00",
+    "last_scan": "2026-01-13T00:00:00+08:00",
     "scanner_version": "1.0.0",
-    "last_commit": "6c73048"
+    "last_commit": "a9c2c8a"
   },
   "scan_statistics": {
     "total_files_estimated": 20,
-    "source_files": 9,
-    "test_files": 4,
-    "scanned_files": 9,
+    "source_files": 6,
+    "test_files": 5,
+    "scanned_files": 11,
     "coverage_percent": 100,
     "ignored_files": 11,
     "test_coverage": 72.6,
@@ -51,7 +51,8 @@
         "internal/handlers",
         "internal/storage",
         "github.com/gofiber/fiber/v2",
-        "github.com/gofiber/fiber/v2/middleware/cors"
+        "github.com/gofiber/fiber/v2/middleware/cors",
+        "github.com/gofiber/fiber/v2/middleware/compress"
       ],
       "environment_variables": [
         {
@@ -68,7 +69,9 @@
       "key_features": [
         "依赖注入组装",
         "优雅关闭（30秒超时）",
-        "信号处理（SIGINT, SIGTERM）"
+        "信号处理（SIGINT, SIGTERM）",
+        "CORS 中间件",
+        "压缩中间件"
       ],
       "gaps": [],
       "docs": "./cmd/cookiecloud/CLAUDE.md"
@@ -167,6 +170,7 @@
       ],
       "dependencies": [
         "internal/crypto",
+        "internal/logger",
         "internal/storage",
         "github.com/gofiber/fiber/v2"
       ],
@@ -253,8 +257,7 @@
         {
           "name": "Storage",
           "fields": [
-            {"name": "dataDir", "type": "string", "description": "数据目录路径"},
-            {"name": "fileLocks", "type": "sync.Map", "description": "文件锁映射"}
+            {"name": "dataDir", "type": "string", "description": "数据目录路径"}
           ]
         },
         {
@@ -316,7 +319,8 @@
         "crypto/cipher",
         "crypto/md5",
         "encoding/base64",
-        "encoding/hex"
+        "encoding/hex",
+        "internal/logger"
       ],
       "algorithms": [
         "AES-256-CBC",
@@ -346,6 +350,42 @@
       ],
       "gaps": [],
       "docs": "./internal/crypto/CLAUDE.md"
+    },
+    {
+      "name": "internal/logger",
+      "path": "internal/logger",
+      "type": "logger",
+      "language": "Go",
+      "description": "结构化错误日志记录",
+      "entry_point": "internal/logger/logger.go",
+      "test_file": "internal/logger/logger_test.go",
+      "has_tests": true,
+      "test_coverage": "未统计",
+      "test_cases": 0,
+      "has_config": false,
+      "coverage": 100,
+      "interfaces": [
+        {
+          "type": "function",
+          "name": "Error",
+          "signature": "func Error(msg string, keyvals ...interface{})",
+          "description": "记录错误日志（结构化 key-value 格式）"
+        },
+        {
+          "type": "function",
+          "name": "RequestError",
+          "signature": "func RequestError(path, method, ip, msg string, err error)",
+          "description": "记录 HTTP 请求错误（包含请求上下文）"
+        }
+      ],
+      "dependencies": [],
+      "key_features": [
+        "结构化日志（key-value 格式）",
+        "只记录错误级别",
+        "自动包含文件名和行号"
+      ],
+      "gaps": [],
+      "docs": "./internal/logger/CLAUDE.md"
     }
   ],
   "dependencies": {
@@ -379,6 +419,7 @@
       "handlers - HTTP 请求处理层",
       "storage - 数据持久化层",
       "crypto - 加密服务层",
+      "logger - 日志记录层",
       "config - 配置管理层"
     ],
     "key_features": [
@@ -390,33 +431,43 @@
       "高测试覆盖率（72.6%）",
       "代码质量检查（golangci-lint）"
     ],
-    "dependency_tree": "main -> config -> storage -> handlers -> crypto",
+    "dependency_tree": "main -> config -> storage -> handlers -> crypto -> logger",
     "test_coverage": {
       "config": 100.0,
       "crypto": 93.5,
       "storage": 91.7,
       "handlers": 87.9,
+      "logger": 0,
       "overall": 72.6
     },
     "quality_tools": {
       "golangci_lint": {
         "config_file": ".golangci.yml",
         "enabled_linters": [
-          "gofmt",
-          "goimports",
           "govet",
-          "staticcheck",
           "ineffassign",
-          "misspell",
           "revive",
-          "gocyclo",
-          "funlen",
-          "errcheck",
-          "prealloc",
+          "staticcheck",
           "unconvert",
-          "unused"
+          "unused",
+          "errcheck",
+          "prealloc"
         ],
-        "note": "所有检查器已配置，代码通过格式化和质量检查"
+        "disabled_linters": [
+          "exhaustive",
+          "nlreturn",
+          "wsl",
+          "godot",
+          "nestif",
+          "noctx",
+          "varnamelen",
+          "gosec",
+          "err113",
+          "gocritic",
+          "errorlint",
+          "unparam"
+        ],
+        "note": "已配置 8 个检查器，适合小型项目"
       },
       "package_comments": {
         "status": "完成",
@@ -433,12 +484,17 @@
     {
       "path": ".golangci.yml",
       "type": "code_quality",
-      "description": "golangci-lint 配置文件（13个检查器）"
+      "description": "golangci-lint 配置文件（8个检查器启用，11个禁用）"
     },
     {
       "path": ".gitignore",
       "type": "git",
       "description": "Git 忽略规则（data、coverage 文件、golangci-lint 缓存）"
+    },
+    {
+      "path": ".github/workflows/docker-image.yml",
+      "type": "ci",
+      "description": "Docker 镜像自动构建 workflow"
     }
   ],
   "ignore_rules": [
@@ -480,7 +536,8 @@
       "internal/config/CLAUDE.md",
       "internal/handlers/CLAUDE.md",
       "internal/storage/CLAUDE.md",
-      "internal/crypto/CLAUDE.md"
+      "internal/crypto/CLAUDE.md",
+      "internal/logger/CLAUDE.md"
     ],
     "readme": [
       "README.md",
@@ -522,6 +579,12 @@
         "tests": 23,
         "coverage": 87.9,
         "file": "handlers_test.go"
+      },
+      "logger": {
+        "tests": 0,
+        "coverage": 0,
+        "file": "logger_test.go",
+        "note": "有测试文件但未实现测试"
       },
       "cmd/cookiecloud": {
         "tests": 0,
