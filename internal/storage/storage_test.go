@@ -257,14 +257,11 @@ func TestSpecialCharactersInUUID(t *testing.T) {
 
 // TestFileLock 测试文件锁机制
 func TestFileLock(t *testing.T) {
-	tempDir := t.TempDir()
-	store, _ := New(tempDir)
-
 	uuid := "lock-test-uuid"
 
 	// 获取同一个 UUID 的锁两次，应该返回相同的锁
-	lock1 := store.getFileLock(uuid)
-	lock2 := store.getFileLock(uuid)
+	lock1 := getFileLock(uuid)
+	lock2 := getFileLock(uuid)
 
 	if lock1 != lock2 {
 		t.Error("同一个 UUID 应该返回相同的锁")
@@ -272,7 +269,7 @@ func TestFileLock(t *testing.T) {
 
 	// 不同 UUID 应该有不同的锁
 	uuid2 := "lock-test-uuid-2"
-	lock3 := store.getFileLock(uuid2)
+	lock3 := getFileLock(uuid2)
 
 	if lock1 == lock3 {
 		t.Error("不同 UUID 应该有不同的锁")

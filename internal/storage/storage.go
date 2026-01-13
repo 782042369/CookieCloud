@@ -15,30 +15,31 @@ type CookieData struct {
 	Encrypted string `json:"encrypted"`
 }
 
-// Storage 数据存储管理器，持有配置和状态
-type Storage struct {
-	dataDir   string   // 数据目录路径
-	fileLocks sync.Map // 文件锁映射（每个UUID一个锁）
+// fileLocks 全局文件锁（使用 sync.Map，Go 会自动清理未使用的条目）
+var fileLocks sync.Map
+
+// getFileLock 获取指定UUID的文件锁
+func getFileLock(uuid string) *sync.Mutex {
+	lock, _ := fileLocks.LoadOrStore(uuid, &sync.Mutex{})
+	return lock.(*sync.Mutex)
 }
 
-// New 创建一个新的 Storage 实例（依赖注入配置）
+// Storage 数据存储管理器
+type Storage struct {
+	dataDir string // 数据目录路径
+}
+
+// New 创建一个新的 Storage 实例
 func New(dataDir string) (*Storage, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("无法创建数据目录 %s: %w", dataDir, err)
 	}
-
 	return &Storage{dataDir: dataDir}, nil
-}
-
-// getFileLock 获取指定UUID的文件锁
-func (s *Storage) getFileLock(uuid string) *sync.Mutex {
-	lock, _ := s.fileLocks.LoadOrStore(uuid, &sync.Mutex{})
-	return lock.(*sync.Mutex)
 }
 
 // SaveEncryptedData 保存加密数据到指定 UUID 的文件中
 func (s *Storage) SaveEncryptedData(uuid, encrypted string) error {
-	lock := s.getFileLock(uuid)
+	lock := getFileLock(uuid)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -70,4 +71,9 @@ func (s *Storage) LoadEncryptedData(uuid string) (*CookieData, error) {
 	}
 
 	return &cookieData, nil
+}
+
+// Close 关闭存储管理器（空实现，保持接口兼容）
+func (s *Storage) Close() error {
+	return nil
 }
