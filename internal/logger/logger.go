@@ -1,5 +1,5 @@
-// Package logger 提供结构化错误日志记录功能
-// 只记录错误级别日志，使用 key-value 格式便于解析
+// Package logger 提供结构化日志记录功能
+// 支持 INFO、WARN、ERROR 三个级别，使用 key-value 格式便于解析
 package logger
 
 import (
@@ -9,13 +9,39 @@ import (
 	"os"
 )
 
-var errorLogger = log.New(os.Stderr, "[ERROR] ", log.LstdFlags|log.Lshortfile)
+var (
+	infoLogger  = log.New(os.Stdout, "[INFO] ", log.LstdFlags|log.Lshortfile)
+	warnLogger  = log.New(os.Stdout, "[WARN] ", log.LstdFlags|log.Lshortfile)
+	errorLogger = log.New(os.Stderr, "[ERROR] ", log.LstdFlags|log.Lshortfile)
+)
+
+// Info 记录信息日志（结构化 key-value 格式）
+// 用法：logger.Info("服务启动", "port", "8088")
+func Info(msg string, keyvals ...interface{}) {
+	logStructured(infoLogger, msg, keyvals...)
+}
+
+// Warn 记录警告日志（结构化 key-value 格式）
+// 用法：logger.Warn("缓存未命中", "uuid", uuid)
+func Warn(msg string, keyvals ...interface{}) {
+	logStructured(warnLogger, msg, keyvals...)
+}
 
 // Error 记录错误日志（结构化 key-value 格式）
 // 用法：logger.Error("保存数据失败", "uuid", uuid, "error", err)
 func Error(msg string, keyvals ...interface{}) {
+	logStructured(errorLogger, msg, keyvals...)
+}
+
+// RequestError 记录 HTTP 请求错误（包含请求上下文）
+func RequestError(path, method, ip, msg string, err error) {
+	Error(msg, "path", path, "method", method, "ip", ip, "error", err)
+}
+
+// logStructured 结构化日志记录的核心函数
+func logStructured(logger *log.Logger, msg string, keyvals ...interface{}) {
 	if len(keyvals) == 0 {
-		errorLogger.Println(msg)
+		logger.Println(msg)
 		return
 	}
 
@@ -31,10 +57,5 @@ func Error(msg string, keyvals ...interface{}) {
 		fmt.Fprintf(&buf, "%v=%v", keyvals[i], keyvals[i+1])
 	}
 
-	errorLogger.Println(buf.String())
-}
-
-// RequestError 记录 HTTP 请求错误（包含请求上下文）
-func RequestError(path, method, ip, msg string, err error) {
-	Error(msg, "path", path, "method", method, "ip", ip, "error", err)
+	logger.Println(buf.String())
 }

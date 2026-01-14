@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
+	"cookiecloud/internal/cache"
 	"cookiecloud/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,8 +19,9 @@ import (
 func TestNew(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
+	dataCache := cache.New(5 * time.Minute)
 
-	handlers := New(store)
+	handlers := New(store, dataCache)
 
 	if handlers == nil {
 		t.Fatal("Handlers 实例不应为 nil")
@@ -86,7 +89,7 @@ func TestFiberRootHandlerWithEmptyAPIRoot(t *testing.T) {
 func TestFiberUpdateHandlerSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -136,7 +139,7 @@ func TestFiberUpdateHandlerSuccess(t *testing.T) {
 func TestFiberUpdateHandlerMissingFields(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -185,7 +188,7 @@ func TestFiberUpdateHandlerMissingFields(t *testing.T) {
 func TestFiberUpdateHandlerInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -207,7 +210,7 @@ func TestFiberUpdateHandlerInvalidJSON(t *testing.T) {
 func TestFiberGetHandlerSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Get("/get/:uuid", handlers.FiberGetHandler)
@@ -243,7 +246,7 @@ func TestFiberGetHandlerSuccess(t *testing.T) {
 func TestFiberGetHandlerNotFound(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Get("/get/:uuid", handlers.FiberGetHandler)
@@ -272,7 +275,7 @@ func TestFiberGetHandlerNotFound(t *testing.T) {
 func TestFiberGetHandlerWithPassword(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/get/:uuid", handlers.FiberGetHandler)
@@ -310,7 +313,7 @@ func TestFiberGetHandlerWithPassword(t *testing.T) {
 func TestFiberGetHandlerEmptyUUID(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Get("/get/:uuid", handlers.FiberGetHandler)
@@ -362,7 +365,7 @@ func TestSendErrorResponse(t *testing.T) {
 func TestFullUpdateAndGetFlow(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -411,7 +414,7 @@ func TestFullUpdateAndGetFlow(t *testing.T) {
 func TestConcurrentRequests(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -453,7 +456,7 @@ func TestConcurrentRequests(t *testing.T) {
 func BenchmarkUpdateHandler(b *testing.B) {
 	tempDir := b.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -475,7 +478,7 @@ func BenchmarkUpdateHandler(b *testing.B) {
 func BenchmarkGetHandler(b *testing.B) {
 	tempDir := b.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Get("/get/:uuid", handlers.FiberGetHandler)
@@ -501,7 +504,7 @@ func TestFiberUpdateHandlerStorageError(t *testing.T) {
 func TestFiberGetHandlerWithInvalidPasswordJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/get/:uuid", handlers.FiberGetHandler)
@@ -531,7 +534,7 @@ func TestFiberGetHandlerWithInvalidPasswordJSON(t *testing.T) {
 func TestFiberGetHandlerWithEmptyPassword(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/get/:uuid", handlers.FiberGetHandler)
@@ -573,7 +576,7 @@ func TestFiberGetHandlerWithEmptyPassword(t *testing.T) {
 func TestFiberUpdateHandlerWithEmptyFields(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -622,7 +625,7 @@ func TestFiberUpdateHandlerWithEmptyFields(t *testing.T) {
 func TestFiberUpdateHandlerWithVeryLongData(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)
@@ -664,7 +667,7 @@ func TestFiberUpdateHandlerWithVeryLongData(t *testing.T) {
 func TestFiberUpdateHandlerDuplicateRequests(t *testing.T) {
 	tempDir := t.TempDir()
 	store, _ := storage.New(tempDir)
-	handlers := New(store)
+	handlers := New(store, cache.New(5 * time.Minute))
 
 	app := fiber.New()
 	app.Post("/update", handlers.FiberUpdateHandler)

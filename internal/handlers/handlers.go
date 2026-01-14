@@ -3,21 +3,34 @@
 package handlers
 
 import (
+	"cookiecloud/internal/cache"
 	"cookiecloud/internal/crypto"
 	"cookiecloud/internal/logger"
 	"cookiecloud/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
+	"unicode/utf8"
 )
 
-// Handlers 处理器集合，持有依赖的存储实例
+const (
+	// MaxUUIDLength UUID的最大长度（防止超长字符串攻击）
+	MaxUUIDLength = 256
+	// MaxEncryptedDataLength 加密数据的最大长度（10MB）
+	MaxEncryptedDataLength = 10 * 1024 * 1024
+)
+
+// Handlers 处理器集合，持有依赖的存储实例和缓存实例
 type Handlers struct {
 	store *storage.Storage
+	cache *cache.Cache
 }
 
-// New 创建一个新的 Handlers 实例（依赖注入 storage）
-func New(store *storage.Storage) *Handlers {
-	return &Handlers{store: store}
+// New 创建一个新的 Handlers 实例（依赖注入 storage 和 cache）
+func New(store *storage.Storage, cache *cache.Cache) *Handlers {
+	return &Handlers{
+		store: store,
+		cache: cache,
+	}
 }
 
 // FiberRootHandler 根路径处理器，返回欢迎信息
@@ -38,12 +51,12 @@ type DecryptRequest struct {
 	Password string `json:"password"`
 }
 
-// FiberUpdateHandler 处理更新请求，保存加密数据
+// FiberUpdateHandler 处理更新请求，保存加密数据并更新缓存
 func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
 
 	if err := c.BodyParser(&req); err != nil {
-		logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON 解析失败", err)
+		logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON解析失败", err)
 		return sendError(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 	}
 
@@ -52,42 +65,63 @@ func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 		return sendError(c, fiber.StatusBadRequest, "Bad Request: both 'encrypted' and 'uuid' fields are required")
 	}
 
+	if !validateUUID(req.UUID) {
+		logger.Error("UUID长度超限", "uuid", req.UUID, "ip", c.IP())
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: uuid length exceeds maximum limit")
+	}
+
+	if len(req.Encrypted) > MaxEncryptedDataLength {
+		logger.Error("加密数据长度超限", "uuid", req.UUID, "length", len(req.Encrypted), "ip", c.IP())
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: encrypted data length exceeds maximum limit")
+	}
+
 	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
 		logger.RequestError(c.Path(), c.Method(), c.IP(), "文件写入失败", err)
 		return sendError(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data")
 	}
 
+	h.cache.Set(req.UUID, req.Encrypted)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"action": "done"})
 }
 
-// FiberGetHandler 处理获取数据请求
+// FiberGetHandler 处理获取数据请求，优先从缓存读取
 func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	if uuid == "" {
 		return sendError(c, fiber.StatusBadRequest, "Bad Request: 'uuid' is required")
 	}
 
-	data, err := h.store.LoadEncryptedData(uuid)
-	if err != nil {
-		logger.Error("数据不存在", "uuid", uuid, "ip", c.IP())
-		return sendError(c, fiber.StatusNotFound, "Not Found: data not found")
+	if !validateUUID(uuid) {
+		logger.Error("UUID长度超限", "uuid", uuid, "ip", c.IP())
+		return sendError(c, fiber.StatusBadRequest, "Bad Request: uuid length exceeds maximum limit")
 	}
 
-	// POST 请求且提供密码则解密
+	encrypted, found := h.cache.Get(uuid)
+	if !found {
+		data, err := h.store.LoadEncryptedData(uuid)
+		if err != nil {
+			logger.Error("数据不存在", "uuid", uuid, "ip", c.IP())
+			return sendError(c, fiber.StatusNotFound, "Not Found: data not found")
+		}
+		encrypted = data.Encrypted
+		h.cache.Set(uuid, encrypted)
+	}
+
 	if c.Method() == "POST" {
 		var req DecryptRequest
 		if err := c.BodyParser(&req); err != nil {
-			logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON 解析失败", err)
+			logger.RequestError(c.Path(), c.Method(), c.IP(), "JSON解析失败", err)
 			return sendError(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 		}
 		if req.Password != "" {
-			decrypted := crypto.Decrypt(uuid, data.Encrypted, req.Password)
+			decrypted := crypto.Decrypt(uuid, encrypted, req.Password)
 			c.Set("Content-Type", "application/json")
 			return c.Send(decrypted)
 		}
 	}
 
-	return c.JSON(data)
+	return c.JSON(&storage.CookieData{Encrypted: encrypted})
 }
 
 // sendError 统一错误响应处理
@@ -96,4 +130,9 @@ func sendError(ctx *fiber.Ctx, statusCode int, reason string) error {
 		"action": "error",
 		"reason": reason,
 	})
+}
+
+// validateUUID 验证UUID长度
+func validateUUID(uuid string) bool {
+	return utf8.RuneCountInString(uuid) <= MaxUUIDLength
 }
