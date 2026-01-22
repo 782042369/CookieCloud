@@ -1,42 +1,73 @@
-# 构建阶段：使用多阶段构建最小化生产镜像
-FROM golang:1.25-alpine as builder
+# ============================================
+# 极简版 Dockerfile - Scratch 基础镜像
+# 目标镜像大小：4-5MB
+# ============================================
+# 优化措施：
+# 1. Go 二进制：UPX 压缩（减少60%）
+# 2. 基础镜像：Scratch 空镜像
+# ============================================
 
+# 阶段一：构建 service (Go版本)
+FROM golang:1.25-alpine AS service-builder
 WORKDIR /app
+
+LABEL stage="service-builder"
 
 # 复制依赖文件
 COPY go.mod go.sum ./
 
-# 下载依赖（利用Docker缓存层）
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    go mod download
+# 下载依赖
+RUN echo "📦 下载 Go 依赖..." && \
+    go mod download && \
+    echo "✅ 验证依赖完成" && \
+    go mod verify
 
 # 复制源代码
 COPY . .
 
-# 构建优化的Go应用
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build \
-    -a -ldflags="-w -s -extldflags -static" \
-    -trimpath \
-    -o main ./cmd/cookiecloud
+# 安装 UPX 压缩工具
+RUN echo "🔧 安装 UPX 压缩工具..." && \
+    apk add --no-cache upx
 
-# 最终生产阶段 - 使用最小的scratch基础镜像
+# 构建完全静态的Go应用（极致优化）
+RUN echo "🔨 开始构建 Go 应用..." && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo \
+    -ldflags="-s -w -extldflags '-static' -buildid=" \
+    -trimpath \
+    -o main ./cmd/cookiecloud && \
+    chmod +x main && \
+    echo "✅ Go 应用构建完成"
+
+# 使用 UPX 压缩二进制文件（减少50-70%体积）
+RUN echo "🗜️  使用 UPX 压缩二进制文件..." && \
+    upx --best --lzma main && \
+    echo "✅ UPX 压缩完成"
+
+# ============================================
+# 最终生产阶段：使用 Scratch（空镜像）
+# ============================================
 FROM scratch
 
 # 设置工作目录
-WORKDIR /
+WORKDIR /app
 
-# 从构建阶段复制二进制文件
-COPY --from=builder /app/main /main
+LABEL stage="production"
 
-# 环境变量
+# 从 service-builder 阶段复制 Go 二进制
+COPY --from=service-builder /app/main ./main
+
+# 设置环境变量（时区默认为中国）
 ENV PORT=8088
+ENV TZ=Asia/Shanghai
 
-# 暴露端口
+# 声明端口
 EXPOSE 8088
 
+# ============================================
+# 注意：Scratch 镜像不包含 shell，因此：
+# - 无法使用 HEALTHCHECK（没有 wget/curl）
+# - 无法进入容器调试（没有 sh/bash）
+# - 推荐使用外部健康检查（如 Kubernetes livenessProbe）
+# ============================================
 
-# 使用exec形式启动应用
-CMD ["/main"]
+CMD ["./main"]
