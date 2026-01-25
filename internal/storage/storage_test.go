@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -53,7 +54,7 @@ func TestSaveAndLoad(t *testing.T) {
 	encryptedData := "base64-encoded-encrypted-data"
 
 	// 保存数据
-	err := store.SaveEncryptedData(uuid, encryptedData)
+	err := store.SaveEncryptedData(context.Background(), uuid, encryptedData)
 	if err != nil {
 		t.Fatalf("保存数据失败: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 
 	// 加载数据
-	data, err := store.LoadEncryptedData(uuid)
+	data, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载数据失败: %v", err)
 	}
@@ -81,7 +82,7 @@ func TestLoadNonExistent(t *testing.T) {
 	store, _ := New(tempDir)
 
 	// 尝试加载不存在的 UUID
-	_, err := store.LoadEncryptedData("non-existent-uuid")
+	_, err := store.LoadEncryptedData(context.Background(), "non-existent-uuid")
 
 	if err == nil {
 		t.Error("期望返回错误，但没有")
@@ -96,20 +97,20 @@ func TestOverwriteData(t *testing.T) {
 	uuid := "test-uuid-456"
 
 	// 保存初始数据
-	err := store.SaveEncryptedData(uuid, "first-data")
+	err := store.SaveEncryptedData(context.Background(), uuid, "first-data")
 	if err != nil {
 		t.Fatalf("保存初始数据失败: %v", err)
 	}
 
 	// 覆盖为新数据
 	newData := "second-data"
-	err = store.SaveEncryptedData(uuid, newData)
+	err = store.SaveEncryptedData(context.Background(), uuid, newData)
 	if err != nil {
 		t.Fatalf("覆盖数据失败: %v", err)
 	}
 
 	// 加载并验证
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载数据失败: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestConcurrentWrites(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			data := "data-" + string(rune('0'+index%10))
-			store.SaveEncryptedData(uuid, data)
+			store.SaveEncryptedData(context.Background(), uuid, data)
 		}(i)
 	}
 
@@ -147,7 +148,7 @@ func TestConcurrentWrites(t *testing.T) {
 	}
 
 	// 加载并验证数据格式
-	_, err := store.LoadEncryptedData(uuid)
+	_, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Errorf("并发写入后加载数据失败: %v", err)
 	}
@@ -172,7 +173,7 @@ func TestMultipleUUIDs(t *testing.T) {
 
 	// 保存所有数据
 	for _, uuid := range uuids {
-		err := store.SaveEncryptedData(uuid, expectedData[uuid])
+		err := store.SaveEncryptedData(context.Background(), uuid, expectedData[uuid])
 		if err != nil {
 			t.Fatalf("保存 %s 失败: %v", uuid, err)
 		}
@@ -180,7 +181,7 @@ func TestMultipleUUIDs(t *testing.T) {
 
 	// 加载并验证所有数据
 	for _, uuid := range uuids {
-		data, err := store.LoadEncryptedData(uuid)
+		data, err := store.LoadEncryptedData(context.Background(), uuid)
 		if err != nil {
 			t.Fatalf("加载 %s 失败: %v", uuid, err)
 		}
@@ -199,7 +200,7 @@ func TestJSONFormat(t *testing.T) {
 	uuid := "json-test-uuid"
 	encryptedData := "test-encrypted-data"
 
-	err := store.SaveEncryptedData(uuid, encryptedData)
+	err := store.SaveEncryptedData(context.Background(), uuid, encryptedData)
 	if err != nil {
 		t.Fatalf("保存数据失败: %v", err)
 	}
@@ -238,12 +239,12 @@ func TestSpecialCharactersInUUID(t *testing.T) {
 
 	for _, uuid := range testUUIDs {
 		encryptedData := "data-for-" + uuid
-		err := store.SaveEncryptedData(uuid, encryptedData)
+		err := store.SaveEncryptedData(context.Background(), uuid, encryptedData)
 		if err != nil {
 			t.Errorf("保存 %s 失败: %v", uuid, err)
 		}
 
-		loaded, err := store.LoadEncryptedData(uuid)
+		loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 		if err != nil {
 			t.Errorf("加载 %s 失败: %v", uuid, err)
 			continue
@@ -285,13 +286,13 @@ func TestEmptyData(t *testing.T) {
 	emptyData := ""
 
 	// 保存空数据
-	err := store.SaveEncryptedData(uuid, emptyData)
+	err := store.SaveEncryptedData(context.Background(), uuid, emptyData)
 	if err != nil {
 		t.Fatalf("保存空数据失败: %v", err)
 	}
 
 	// 加载空数据
-	data, err := store.LoadEncryptedData(uuid)
+	data, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载空数据失败: %v", err)
 	}
@@ -314,12 +315,12 @@ func TestLongData(t *testing.T) {
 		longData += "a"
 	}
 
-	err := store.SaveEncryptedData(uuid, longData)
+	err := store.SaveEncryptedData(context.Background(), uuid, longData)
 	if err != nil {
 		t.Fatalf("保存长数据失败: %v", err)
 	}
 
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载长数据失败: %v", err)
 	}
@@ -338,8 +339,8 @@ func BenchmarkSaveAndLoad(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.SaveEncryptedData(uuid, data)
-		store.LoadEncryptedData(uuid)
+		store.SaveEncryptedData(context.Background(), uuid, data)
+		store.LoadEncryptedData(context.Background(), uuid)
 	}
 }
 
@@ -351,7 +352,7 @@ func BenchmarkConcurrentWrites(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			store.SaveEncryptedData(uuid, "test-data")
+			store.SaveEncryptedData(context.Background(), uuid, "test-data")
 		}
 	})
 }
@@ -371,7 +372,7 @@ func TestLoadEncryptedDataInvalidJSON(t *testing.T) {
 	}
 
 	// 尝试加载
-	_, err = store.LoadEncryptedData(uuid)
+	_, err = store.LoadEncryptedData(context.Background(), uuid)
 	if err == nil {
 		t.Error("期望返回JSON解析错误，但没有")
 	}
@@ -387,12 +388,12 @@ func TestSaveEncryptedDataWithSpecialChars(t *testing.T) {
 	// 包含各种特殊字符的数据
 	specialData := "data with \"quotes\" and\nnewlines and\ttabs and \\backslashes\\ and /slashes/ and emoji 🎉"
 
-	err := store.SaveEncryptedData(uuid, specialData)
+	err := store.SaveEncryptedData(context.Background(), uuid, specialData)
 	if err != nil {
 		t.Fatalf("保存特殊字符数据失败: %v", err)
 	}
 
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载特殊字符数据失败: %v", err)
 	}
@@ -417,7 +418,7 @@ func TestLoadEncryptedDataEmptyFile(t *testing.T) {
 	}
 
 	// 尝试加载（空文件会导致JSON解析失败）
-	_, err = store.LoadEncryptedData(uuid)
+	_, err = store.LoadEncryptedData(context.Background(), uuid)
 	if err == nil {
 		t.Error("期望返回JSON解析错误，但没有")
 	}
@@ -438,7 +439,7 @@ func TestLoadEncryptedDataPartialJSON(t *testing.T) {
 	}
 
 	// 尝试加载（应该成功，但Encrypted字段为空）
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载部分JSON失败: %v", err)
 	}
@@ -457,14 +458,14 @@ func TestMultipleReads(t *testing.T) {
 	data := "test-data-for-multiple-reads"
 
 	// 保存数据
-	err := store.SaveEncryptedData(uuid, data)
+	err := store.SaveEncryptedData(context.Background(), uuid, data)
 	if err != nil {
 		t.Fatalf("保存数据失败: %v", err)
 	}
 
 	// 多次读取
 	for i := 0; i < 10; i++ {
-		loaded, err := store.LoadEncryptedData(uuid)
+		loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 		if err != nil {
 			t.Errorf("第%d次读取失败: %v", i+1, err)
 		}
@@ -483,7 +484,7 @@ func TestOverwriteWithDifferentSizes(t *testing.T) {
 
 	// 保存小数据
 	smallData := "small"
-	err := store.SaveEncryptedData(uuid, smallData)
+	err := store.SaveEncryptedData(context.Background(), uuid, smallData)
 	if err != nil {
 		t.Fatalf("保存小数据失败: %v", err)
 	}
@@ -493,13 +494,13 @@ func TestOverwriteWithDifferentSizes(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		largeData += "x"
 	}
-	err = store.SaveEncryptedData(uuid, largeData)
+	err = store.SaveEncryptedData(context.Background(), uuid, largeData)
 	if err != nil {
 		t.Fatalf("保存大数据失败: %v", err)
 	}
 
 	// 验证最终保存的是大数据
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载数据失败: %v", err)
 	}
@@ -509,13 +510,13 @@ func TestOverwriteWithDifferentSizes(t *testing.T) {
 	}
 
 	// 再保存小数据
-	err = store.SaveEncryptedData(uuid, smallData)
+	err = store.SaveEncryptedData(context.Background(), uuid, smallData)
 	if err != nil {
 		t.Fatalf("再次保存小数据失败: %v", err)
 	}
 
 	// 验证最终保存的是小数据
-	loaded, err = store.LoadEncryptedData(uuid)
+	loaded, err = store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("再次加载数据失败: %v", err)
 	}

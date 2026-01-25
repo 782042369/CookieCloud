@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,7 +39,16 @@ func New(dataDir string) (*Storage, error) {
 }
 
 // SaveEncryptedData 保存加密数据到指定 UUID 的文件中
-func (s *Storage) SaveEncryptedData(uuid, encrypted string) error {
+// 支持 context 取消信号，在文件操作前检查 context 状态
+func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string) error {
+	// 检查 context 是否已取消
+	select {
+	case <-ctx.Done():
+		return ctx.Err() // 返回 context 取消错误
+	default:
+		// 继续执行
+	}
+
 	lock := getFileLock(uuid)
 	lock.Lock()
 	defer lock.Unlock()
@@ -57,7 +67,16 @@ func (s *Storage) SaveEncryptedData(uuid, encrypted string) error {
 }
 
 // LoadEncryptedData 从指定 UUID 的文件中加载加密数据
-func (s *Storage) LoadEncryptedData(uuid string) (*CookieData, error) {
+// 支持 context 取消信号，在文件操作前检查 context 状态
+func (s *Storage) LoadEncryptedData(ctx context.Context, uuid string) (*CookieData, error) {
+	// 检查 context 是否已取消
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err() // 返回 context 取消错误
+	default:
+		// 继续执行
+	}
+
 	filePath := filepath.Join(s.dataDir, uuid+".json")
 
 	data, err := os.ReadFile(filePath)

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
@@ -125,7 +126,7 @@ func TestFiberUpdateHandlerSuccess(t *testing.T) {
 	}
 
 	// 验证数据已保存
-	loaded, err := store.LoadEncryptedData(uuid)
+	loaded, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Fatalf("加载数据失败: %v", err)
 	}
@@ -219,7 +220,7 @@ func TestFiberGetHandlerSuccess(t *testing.T) {
 	encrypted := "encrypted-data-123"
 
 	// 先保存数据
-	_ = store.SaveEncryptedData(uuid, encrypted)
+	_ = store.SaveEncryptedData(context.Background(), uuid, encrypted)
 
 	// 发送 GET 请求
 	req := httptest.NewRequest("GET", "/get/"+uuid, nil)
@@ -284,7 +285,7 @@ func TestFiberGetHandlerWithPassword(t *testing.T) {
 	encrypted := "invalid-encrypted-data" // 这会导致解密失败，返回 {}
 
 	// 先保存数据
-	_ = store.SaveEncryptedData(uuid, encrypted)
+	_ = store.SaveEncryptedData(context.Background(), uuid, encrypted)
 
 	// 发送 POST 请求并提供密码
 	reqBody := DecryptRequest{Password: "test-password"}
@@ -446,7 +447,7 @@ func TestConcurrentRequests(t *testing.T) {
 	wg.Wait()
 
 	// 验证文件存在且可以读取
-	_, err := store.LoadEncryptedData(uuid)
+	_, err := store.LoadEncryptedData(context.Background(), uuid)
 	if err != nil {
 		t.Errorf("并发请求后数据加载失败: %v", err)
 	}
@@ -485,7 +486,7 @@ func BenchmarkGetHandler(b *testing.B) {
 
 	uuid := "benchmark-get-uuid"
 	encrypted := "benchmark-test-data"
-	_ = store.SaveEncryptedData(uuid, encrypted)
+	_ = store.SaveEncryptedData(context.Background(), uuid, encrypted)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -513,7 +514,7 @@ func TestFiberGetHandlerWithInvalidPasswordJSON(t *testing.T) {
 	encrypted := "test-data"
 
 	// 先保存数据
-	_ = store.SaveEncryptedData(uuid, encrypted)
+	_ = store.SaveEncryptedData(context.Background(), uuid, encrypted)
 
 	// 发送无效的JSON
 	req := httptest.NewRequest("POST", "/get/"+uuid, bytes.NewReader([]byte("invalid-json")))
@@ -543,7 +544,7 @@ func TestFiberGetHandlerWithEmptyPassword(t *testing.T) {
 	encrypted := "test-data"
 
 	// 先保存数据
-	_ = store.SaveEncryptedData(uuid, encrypted)
+	_ = store.SaveEncryptedData(context.Background(), uuid, encrypted)
 
 	// 发送空密码
 	reqBody := DecryptRequest{Password: ""}
@@ -657,7 +658,7 @@ func TestFiberUpdateHandlerWithVeryLongData(t *testing.T) {
 	}
 
 	// 验证数据已保存
-	loaded, _ := store.LoadEncryptedData(uuid)
+	loaded, _ := store.LoadEncryptedData(context.Background(), uuid)
 	if len(loaded.Encrypted) != len(longData) {
 		t.Errorf("数据长度不匹配")
 	}
@@ -713,7 +714,7 @@ func TestFiberUpdateHandlerDuplicateRequests(t *testing.T) {
 	}
 
 	// 验证最终保存的是第二次的数据
-	loaded, _ := store.LoadEncryptedData(uuid)
+	loaded, _ := store.LoadEncryptedData(context.Background(), uuid)
 	if loaded.Encrypted != "second-data" {
 		t.Errorf("期望保存第二次的数据，实际得到: %s", loaded.Encrypted)
 	}
