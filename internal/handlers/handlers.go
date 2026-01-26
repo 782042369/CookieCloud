@@ -52,6 +52,7 @@ type DecryptRequest struct {
 }
 
 // FiberUpdateHandler 处理更新请求，保存加密数据并更新缓存
+// 使用 Fiber 的 Context 获取标准库的 context.Context
 func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 	var req UpdateRequest
 
@@ -75,7 +76,10 @@ func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 		return sendError(c, fiber.StatusBadRequest, "Bad Request: encrypted data length exceeds maximum limit")
 	}
 
-	if err := h.store.SaveEncryptedData(req.UUID, req.Encrypted); err != nil {
+	// 获取 Fiber 的标准 context.Context
+	ctx := c.Context()
+
+	if err := h.store.SaveEncryptedData(ctx, req.UUID, req.Encrypted); err != nil {
 		logger.RequestError(c.Path(), c.Method(), c.IP(), "文件写入失败", err)
 		return sendError(c, fiber.StatusInternalServerError, "Internal Server Error: failed to save data")
 	}
@@ -86,6 +90,7 @@ func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error {
 }
 
 // FiberGetHandler 处理获取数据请求，优先从缓存读取
+// 使用 Fiber 的 Context 获取标准库的 context.Context
 func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	if uuid == "" {
@@ -99,7 +104,10 @@ func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 
 	encrypted, found := h.cache.Get(uuid)
 	if !found {
-		data, err := h.store.LoadEncryptedData(uuid)
+		// 获取 Fiber 的标准 context.Context
+		ctx := c.Context()
+
+		data, err := h.store.LoadEncryptedData(ctx, uuid)
 		if err != nil {
 			logger.Error("数据不存在", "uuid", uuid, "ip", c.IP())
 			return sendError(c, fiber.StatusNotFound, "Not Found: data not found")
