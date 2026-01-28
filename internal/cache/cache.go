@@ -57,9 +57,12 @@ func (c *Cache) Delete(uuid string) {
 	c.items.Delete(uuid)
 }
 
-// Clear 清空所有缓存
+// Clear 清空所有缓存（遍历删除每个key）
 func (c *Cache) Clear() {
-	c.items = sync.Map{}
+	c.items.Range(func(key, _ interface{}) bool {
+		c.items.Delete(key)
+		return true
+	})
 }
 
 // CleanExpired 清理过期的缓存项
