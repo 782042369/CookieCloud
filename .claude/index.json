@@ -1,659 +1,129 @@
 {
-  "metadata": {
-    "project_name": "CookieCloud",
-    "description": "CookieCloud 服务端接口 Go 语言实现版本（小型项目）",
+  "timestamp": "2026-01-28T12:44:21Z",
+  "project": {
+    "name": "CookieCloud",
+    "description": "CookieCloud Go 实现 - 轻量级 Cookie 和 LocalStorage 同步服务",
     "language": "Go",
-    "version": "1.0.0",
-    "last_scan": "2026-01-13T00:00:00+08:00",
-    "scanner_version": "1.0.0",
-    "last_commit": "a9c2c8a"
-  },
-  "scan_statistics": {
-    "total_files_estimated": 20,
-    "source_files": 6,
-    "test_files": 5,
-    "scanned_files": 11,
-    "coverage_percent": 100,
-    "ignored_files": 11,
-    "test_coverage": 72.6,
-    "test_count": 63,
-    "truncated": false,
-    "project_type": "小型项目（只需要单元测试和 golangci-lint）"
+    "version": "1.25.5"
   },
   "modules": [
     {
-      "name": "cmd/cookiecloud",
       "path": "cmd/cookiecloud",
-      "type": "entry",
-      "language": "Go",
-      "description": "应用启动、依赖注入组装、路由注册和优雅关闭",
-      "entry_point": "cmd/cookiecloud/main.go",
-      "test_file": "",
+      "name": "Application Entry",
+      "entry": "cmd/cookiecloud/main.go",
+      "responsibility": "应用入口，初始化 Web 服务器和路由",
       "has_tests": false,
-      "test_coverage": 0,
-      "has_config": false,
-      "coverage": 100,
-      "note": "小型项目不需要集成测试，核心逻辑已通过其他模块测试覆盖",
-      "interfaces": [
-        {
-          "type": "http",
-          "description": "HTTP 服务器启动",
-          "port": "8088",
-          "endpoints": [
-            "GET/POST /",
-            "POST /update",
-            "GET/POST /get/:uuid"
-          ]
-        }
-      ],
-      "dependencies": [
-        "internal/config",
-        "internal/handlers",
-        "internal/storage",
-        "github.com/gofiber/fiber/v2",
-        "github.com/gofiber/fiber/v2/middleware/cors",
-        "github.com/gofiber/fiber/v2/middleware/compress"
-      ],
-      "environment_variables": [
-        {
-          "name": "PORT",
-          "default": "8088",
-          "description": "HTTP 服务监听端口"
-        },
-        {
-          "name": "API_ROOT",
-          "default": "",
-          "description": "API 根路径"
-        }
-      ],
-      "key_features": [
-        "依赖注入组装",
-        "优雅关闭（30秒超时）",
-        "信号处理（SIGINT, SIGTERM）",
-        "CORS 中间件",
-        "压缩中间件"
-      ],
-      "gaps": [],
-      "docs": "./cmd/cookiecloud/CLAUDE.md"
+      "has_config": false
     },
     {
-      "name": "internal/config",
       "path": "internal/config",
-      "type": "config",
-      "language": "Go",
-      "description": "配置加载和管理（环境变量）",
-      "entry_point": "internal/config/config.go",
-      "test_file": "internal/config/config_test.go",
+      "name": "Configuration",
+      "entry": "internal/config/config.go",
+      "responsibility": "环境变量配置管理（PORT, API_ROOT, DATA_DIR）",
       "has_tests": true,
-      "test_coverage": 100,
-      "test_cases": 6,
-      "has_config": false,
-      "coverage": 100,
-      "interfaces": [
-        {
-          "type": "struct",
-          "name": "Config",
-          "fields": [
-            {"name": "Port", "type": "string", "description": "HTTP 监听端口"},
-            {"name": "APIRoot", "type": "string", "description": "API 路径前缀"},
-            {"name": "DataDir", "type": "string", "description": "数据存储目录"}
-          ]
-        },
-        {
-          "type": "function",
-          "name": "Load",
-          "signature": "func Load() *Config",
-          "description": "加载配置（环境变量 + 默认值）"
-        }
-      ],
-      "dependencies": [],
-      "environment_variables": [
-        {
-          "name": "PORT",
-          "default": "8088",
-          "description": "HTTP 监听端口"
-        },
-        {
-          "name": "API_ROOT",
-          "default": "",
-          "description": "API 路径前缀（自动去除尾部斜杠）"
-        },
-        {
-          "name": "DATA_DIR",
-          "default": "./data",
-          "description": "数据存储目录"
-        }
-      ],
-      "test_highlights": [
-        "默认配置加载测试",
-        "环境变量覆盖测试",
-        "API_ROOT 尾部斜杠处理测试",
-        "部分环境变量设置测试",
-        "辅助函数测试",
-        "配置结构体验证测试"
-      ],
-      "gaps": [],
-      "docs": "./internal/config/CLAUDE.md"
+      "test_file": "internal/config/config_test.go"
     },
     {
-      "name": "internal/handlers",
       "path": "internal/handlers",
-      "type": "handler",
-      "language": "Go",
-      "description": "HTTP 请求处理与响应",
-      "entry_point": "internal/handlers/handlers.go",
+      "name": "HTTP Handlers",
+      "entry": "internal/handlers/handlers.go",
+      "responsibility": "HTTP 路由处理、请求验证、响应格式化",
+      "has_tests": true,
       "test_file": "internal/handlers/handlers_test.go",
-      "has_tests": true,
-      "test_coverage": 87.9,
-      "test_cases": 23,
-      "has_config": false,
-      "coverage": 100,
-      "interfaces": [
-        {
-          "type": "function",
-          "name": "FiberRootHandler",
-          "signature": "func FiberRootHandler(apiRoot string) fiber.Handler",
-          "description": "根路径处理器，返回欢迎信息"
-        },
-        {
-          "type": "function",
-          "name": "FiberUpdateHandler",
-          "signature": "func (h *Handlers) FiberUpdateHandler(c *fiber.Ctx) error",
-          "description": "处理更新请求，保存加密数据"
-        },
-        {
-          "type": "function",
-          "name": "FiberGetHandler",
-          "signature": "func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error",
-          "description": "处理获取数据请求，支持解密"
-        }
-      ],
-      "dependencies": [
-        "internal/crypto",
-        "internal/logger",
-        "internal/storage",
-        "github.com/gofiber/fiber/v2"
-      ],
-      "data_models": [
-        {
-          "name": "Handlers",
-          "fields": [
-            {"name": "store", "type": "*storage.Storage", "description": "存储实例（依赖注入）"}
-          ]
-        },
-        {
-          "name": "UpdateRequest",
-          "fields": [
-            {"name": "UUID", "type": "string", "json": "uuid"},
-            {"name": "Encrypted", "type": "string", "json": "encrypted"}
-          ]
-        },
-        {
-          "name": "DecryptRequest",
-          "fields": [
-            {"name": "Password", "type": "string", "json": "password"}
-          ]
-        }
-      ],
-      "test_highlights": [
-        "构造函数测试",
-        "根路径处理器测试（GET/POST）",
-        "更新处理器成功测试",
-        "参数缺失验证测试",
-        "无效 JSON 测试",
-        "获取数据成功测试",
-        "数据不存在测试",
-        "解密请求测试",
-        "错误响应格式测试",
-        "完整流程测试",
-        "并发请求测试（50个并发）",
-        "超长数据测试",
-        "重复请求测试",
-        "性能基准测试"
-      ],
-      "gaps": [],
-      "docs": "./internal/handlers/CLAUDE.md"
+      "interfaces": ["UpdateHandler", "GetHandler", "RootHandler"]
     },
     {
-      "name": "internal/storage",
       "path": "internal/storage",
-      "type": "storage",
-      "language": "Go",
-      "description": "数据持久化与文件操作（并发安全）",
-      "entry_point": "internal/storage/storage.go",
+      "name": "Storage Layer",
+      "entry": "internal/storage/storage.go",
+      "responsibility": "JSON 文件存储，支持并发安全和 context 取消",
+      "has_tests": true,
       "test_file": "internal/storage/storage_test.go",
-      "has_tests": true,
-      "test_coverage": 91.7,
-      "test_cases": 20,
-      "has_config": false,
-      "coverage": 100,
-      "interfaces": [
-        {
-          "type": "function",
-          "name": "New",
-          "signature": "func New(dataDir string) (*Storage, error)",
-          "description": "创建存储实例（依赖注入配置）"
-        },
-        {
-          "type": "function",
-          "name": "SaveEncryptedData",
-          "signature": "func (s *Storage) SaveEncryptedData(uuid, encrypted string) error",
-          "description": "保存加密数据到文件（并发安全）"
-        },
-        {
-          "type": "function",
-          "name": "LoadEncryptedData",
-          "signature": "func (s *Storage) LoadEncryptedData(uuid string) (*CookieData, error)",
-          "description": "从文件加载加密数据"
-        }
-      ],
-      "dependencies": [
-        "encoding/json",
-        "os",
-        "path/filepath",
-        "sync"
-      ],
-      "data_models": [
-        {
-          "name": "Storage",
-          "fields": [
-            {"name": "dataDir", "type": "string", "description": "数据目录路径"}
-          ]
-        },
-        {
-          "name": "CookieData",
-          "fields": [
-            {"name": "Encrypted", "type": "string", "json": "encrypted"}
-          ]
-        }
-      ],
-      "storage_type": "JSON Files",
-      "storage_path": "./data",
-      "key_features": [
-        "并发安全（sync.Map 文件锁）",
-        "依赖注入设计",
-        "零全局变量"
-      ],
-      "test_highlights": [
-        "构造函数测试",
-        "保存和加载测试",
-        "数据不存在测试",
-        "数据覆盖测试",
-        "并发写入测试（100个并发）",
-        "多 UUID 独立存储测试",
-        "JSON 格式验证测试",
-        "特殊字符处理测试",
-        "文件锁机制测试",
-        "空数据和长数据测试",
-        "无效 JSON 处理测试",
-        "多次读取测试",
-        "不同大小数据覆盖测试",
-        "性能基准测试"
-      ],
-      "gaps": [],
-      "docs": "./internal/storage/CLAUDE.md"
+      "data_models": ["CookieData"]
     },
     {
-      "name": "internal/crypto",
       "path": "internal/crypto",
-      "type": "crypto",
-      "language": "Go",
-      "description": "加密解密算法实现（兼容 CryptoJS）",
-      "entry_point": "internal/crypto/crypto.go",
-      "test_file": "internal/crypto/crypto_test.go",
+      "name": "Cryptography",
+      "entry": "internal/crypto/crypto.go",
+      "responsibility": "AES-256-CBC 加密，兼容 CryptoJS 和 OpenSSL",
       "has_tests": true,
-      "test_coverage": 93.5,
-      "test_cases": 16,
-      "has_config": false,
-      "coverage": 100,
-      "interfaces": [
-        {
-          "type": "function",
-          "name": "Decrypt",
-          "signature": "func Decrypt(uuid, encrypted, password string) []byte",
-          "description": "解密 Cookie 数据（兼容 CryptoJS）"
-        }
-      ],
-      "dependencies": [
-        "crypto/aes",
-        "crypto/cipher",
-        "crypto/md5",
-        "encoding/base64",
-        "encoding/hex",
-        "internal/logger"
-      ],
-      "algorithms": [
-        "AES-256-CBC",
-        "EVP_BytesToKey (OpenSSL)",
-        "PKCS7 Padding",
-        "MD5 Hash"
-      ],
-      "key_features": [
-        "CryptoJS 兼容",
-        "OpenSSL EVP_BytesToKey 实现",
-        "自动处理盐值和 IV"
-      ],
-      "test_highlights": [
-        "MD5 哈希计算测试",
-        "多字符串拼接 MD5 测试",
-        "PKCS7 填充移除测试",
-        "密钥派生函数测试",
-        "无效盐值测试",
-        "无效密文格式测试",
-        "解密函数测试",
-        "密钥生成逻辑测试",
-        "常量定义测试",
-        "边界条件测试",
-        "成功解密测试",
-        "PKCS7 边缘情况测试",
-        "性能基准测试"
-      ],
-      "gaps": [],
-      "docs": "./internal/crypto/CLAUDE.md"
+      "test_file": "internal/crypto/crypto_test.go"
     },
     {
-      "name": "internal/logger",
-      "path": "internal/logger",
-      "type": "logger",
-      "language": "Go",
-      "description": "结构化错误日志记录",
-      "entry_point": "internal/logger/logger.go",
-      "test_file": "internal/logger/logger_test.go",
+      "path": "internal/cache",
+      "name": "Memory Cache",
+      "entry": "internal/cache/cache.go",
+      "responsibility": "sync.Map 内存缓存，支持 TTL 过期",
       "has_tests": true,
-      "test_coverage": "未统计",
-      "test_cases": 0,
-      "has_config": false,
-      "coverage": 100,
-      "interfaces": [
-        {
-          "type": "function",
-          "name": "Error",
-          "signature": "func Error(msg string, keyvals ...interface{})",
-          "description": "记录错误日志（结构化 key-value 格式）"
-        },
-        {
-          "type": "function",
-          "name": "RequestError",
-          "signature": "func RequestError(path, method, ip, msg string, err error)",
-          "description": "记录 HTTP 请求错误（包含请求上下文）"
-        }
-      ],
-      "dependencies": [],
-      "key_features": [
-        "结构化日志（key-value 格式）",
-        "只记录错误级别",
-        "自动包含文件名和行号"
-      ],
-      "gaps": [],
-      "docs": "./internal/logger/CLAUDE.md"
+      "test_file": "internal/cache/cache_test.go"
+    },
+    {
+      "path": "internal/logger",
+      "name": "Structured Logger",
+      "entry": "internal/logger/logger.go",
+      "responsibility": "结构化日志（INFO/WARN/ERROR），key-value 格式",
+      "has_tests": true,
+      "test_file": "internal/logger/logger_test.go"
     }
   ],
-  "dependencies": {
-    "go": {
-      "version": "1.25.5",
-      "modules": [
-        {
-          "path": "github.com/gofiber/fiber/v2",
-          "version": "v2.52.10"
-        }
-      ],
-      "indirect": [
-        "github.com/andybalholm/brotli",
-        "github.com/google/uuid",
-        "github.com/klauspost/compress",
-        "github.com/mattn/go-colorable",
-        "github.com/mattn/go-isatty",
-        "github.com/mattn/go-runewidth",
-        "github.com/rivo/uniseg",
-        "github.com/valyala/bytebufferpool",
-        "github.com/valyala/fasthttp",
-        "github.com/valyala/tcplisten",
-        "golang.org/x/sys"
-      ]
+  "coverage": {
+    "total_files": 27,
+    "scanned_files": 27,
+    "coverage_percent": 100,
+    "modules_count": 7,
+    "test_files": 6,
+    "has_documentation": {
+      "root_readme": true,
+      "root_readme_cn": true,
+      "dockerfile": true,
+      "github_workflow": true,
+      "golangci_config": true
     }
+  },
+  "documentation": {
+    "root_claude_md": {
+      "path": "CLAUDE.md",
+      "lines": 120,
+      "sections": ["项目快照", "模块导航", "快速启动", "核心设计", "质量工具", "参考文档"]
+    },
+    "existing_docs": {
+      "README.md": true,
+      "README_cn.md": true,
+      "Dockerfile": true,
+      ".github/workflows/docker-image.yml": true,
+      ".golangci.yml": true
+    },
+    "deduplication_stats": {
+      "avoided_duplicate_lines": 0,
+      "used_reference_links": 5,
+      "reference_targets": ["README.md", "README_cn.md", "Dockerfile", ".github/workflows/docker-image.yml", ".golangci.yml"]
+    }
+  },
+  "tech_stack": {
+    "language": "Go 1.25.5",
+    "web_framework": "Fiber v2.52.10",
+    "encryption": "AES-256-CBC (CryptoJS compatible)",
+    "testing": "standard Go testing + benchmarks",
+    "linting": "golangci-lint"
   },
   "architecture": {
-    "pattern": "依赖注入 + 分层架构",
-    "layers": [
-      "cmd - 应用入口和依赖组装",
-      "handlers - HTTP 请求处理层",
-      "storage - 数据持久化层",
-      "crypto - 加密服务层",
-      "logger - 日志记录层",
-      "config - 配置管理层"
-    ],
-    "key_features": [
-      "零全局变量",
-      "依赖注入（通过构造函数）",
-      "并发安全（sync.Map 文件锁）",
-      "优雅关闭（信号处理）",
-      "客户端加密（零知识架构）",
-      "高测试覆盖率（72.6%）",
-      "代码质量检查（golangci-lint）"
-    ],
-    "dependency_tree": "main -> config -> storage -> handlers -> crypto -> logger",
-    "test_coverage": {
-      "config": 100.0,
-      "crypto": 93.5,
-      "storage": 91.7,
-      "handlers": 87.9,
-      "logger": 0,
-      "overall": 72.6
-    },
-    "quality_tools": {
-      "golangci_lint": {
-        "config_file": ".golangci.yml",
-        "enabled_linters": [
-          "govet",
-          "ineffassign",
-          "revive",
-          "staticcheck",
-          "unconvert",
-          "unused",
-          "errcheck",
-          "prealloc"
-        ],
-        "disabled_linters": [
-          "exhaustive",
-          "nlreturn",
-          "wsl",
-          "godot",
-          "nestif",
-          "noctx",
-          "varnamelen",
-          "gosec",
-          "err113",
-          "gocritic",
-          "errorlint",
-          "unparam"
-        ],
-        "note": "已配置 8 个检查器，适合小型项目"
-      },
-      "package_comments": {
-        "status": "完成",
-        "note": "所有包都有 package 注释"
-      }
-    }
-  },
-  "configuration_files": [
-    {
-      "path": "Dockerfile",
-      "type": "docker",
-      "description": "多阶段 Docker 构建配置（golang:alpine -> scratch）"
-    },
-    {
-      "path": ".golangci.yml",
-      "type": "code_quality",
-      "description": "golangci-lint 配置文件（8个检查器启用，11个禁用）"
-    },
-    {
-      "path": ".gitignore",
-      "type": "git",
-      "description": "Git 忽略规则（data、coverage 文件、golangci-lint 缓存）"
-    },
-    {
-      "path": ".github/workflows/docker-image.yml",
-      "type": "ci",
-      "description": "Docker 镜像自动构建 workflow"
-    }
-  ],
-  "ignore_rules": [
-    "data/**",
-    ".git/**",
-    ".github/**",
-    "dist/**",
-    "build/**",
-    ".next/**",
-    "__pycache__/**",
-    "*.lock",
-    "*.log",
-    "*.bin",
-    "*.pdf",
-    "*.png",
-    "*.jpg",
-    "*.jpeg",
-    "*.gif",
-    "*.mp4",
-    "*.zip",
-    "*.tar",
-    "*.gz",
-    "coverage*.out",
-    "coverage*.html",
-    "*.test",
-    ".golangci/**",
-    ".golangci.cache",
-    "*.sarif",
-    "*.prof"
-  ],
-  "ignored_paths": [
-    ".git/",
-    "data/"
-  ],
-  "documentation": {
-    "root": "CLAUDE.md",
-    "modules": [
-      "cmd/cookiecloud/CLAUDE.md",
-      "internal/config/CLAUDE.md",
-      "internal/handlers/CLAUDE.md",
-      "internal/storage/CLAUDE.md",
-      "internal/crypto/CLAUDE.md",
-      "internal/logger/CLAUDE.md"
-    ],
-    "readme": [
-      "README.md",
-      "README_cn.md"
+    "style": "模块化设计（cmd/ + internal/）",
+    "patterns": [
+      "依赖注入（Handlers 接收 storage 和 cache）",
+      "context.Context 取消信号传递",
+      "sync.Map 并发安全",
+      "中间件模式（CORS, limiter, compress）"
     ]
   },
-  "gaps_summary": {
-    "critical": [],
-    "high": [],
-    "medium": [],
-    "low": []
-  },
-  "recommendations": {
-    "immediate": [],
-    "short_term": [],
-    "long_term": []
-  },
-  "next_steps": [],
-  "test_summary": {
-    "total_tests": 63,
-    "overall_coverage": 72.6,
-    "by_module": {
-      "config": {
-        "tests": 6,
-        "coverage": 100.0,
-        "file": "config_test.go"
-      },
-      "crypto": {
-        "tests": 16,
-        "coverage": 93.5,
-        "file": "crypto_test.go"
-      },
-      "storage": {
-        "tests": 20,
-        "coverage": 91.7,
-        "file": "storage_test.go"
-      },
-      "handlers": {
-        "tests": 23,
-        "coverage": 87.9,
-        "file": "handlers_test.go"
-      },
-      "logger": {
-        "tests": 0,
-        "coverage": 0,
-        "file": "logger_test.go",
-        "note": "有测试文件但未实现测试"
-      },
-      "cmd/cookiecloud": {
-        "tests": 0,
-        "coverage": 0,
-        "file": "",
-        "note": "小型项目不需要集成测试"
-      }
-    },
-    "test_types": [
-      "单元测试",
-      "并发测试",
-      "边界条件测试",
-      "错误处理测试",
-      "性能基准测试"
-    ],
-    "benchmark_tests": [
-      "BenchmarkMd5String",
-      "BenchmarkDecrypt",
-      "BenchmarkSaveAndLoad",
-      "BenchmarkConcurrentWrites",
-      "BenchmarkUpdateHandler",
-      "BenchmarkGetHandler"
-    ],
-    "project_note": "小型项目，单元测试已足够，不需要集成测试"
-  },
-  "api_endpoints": [
-    {
-      "method": "GET/POST",
-      "path": "/",
-      "description": "健康检查和欢迎信息"
-    },
-    {
-      "method": "POST",
-      "path": "/update",
-      "description": "保存加密的 Cookie 数据",
-      "request_body": {
-        "uuid": "string (required)",
-        "encrypted": "string (required)"
-      }
-    },
-    {
-      "method": "GET",
-      "path": "/get/:uuid",
-      "description": "获取加密数据",
-      "response": {
-        "encrypted": "string"
-      }
-    },
-    {
-      "method": "POST",
-      "path": "/get/:uuid",
-      "description": "获取并解密数据",
-      "request_body": {
-        "password": "string"
-      },
-      "response": "decrypted JSON data"
-    }
+  "key_features": [
+    "兼容 CryptoJS AES-256-CBC 加密",
+    "内存缓存（5分钟 TTL）",
+    "速率限制（60次/分钟）",
+    "context.Context 取消支持",
+    "完善的单元测试与基准测试",
+    "Docker 极简镜像（Scratch + UPX 压缩）"
   ],
-  "quality_metrics": {
-    "code_coverage": 72.6,
-    "test_count": 63,
-    "has_unit_tests": true,
-    "has_integration_tests": false,
-    "has_benchmarks": true,
-    "code_quality_tools": [
-      "golangci-lint",
-      "gofmt"
-    ],
-    "package_comments": true,
-    "project_size": "小型（<500行核心代码）"
-  }
+  "gaps": [],
+  "next_steps": [],
+  "truncated": false
 }
