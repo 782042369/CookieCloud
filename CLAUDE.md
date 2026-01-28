@@ -14,6 +14,7 @@ CookieCloud 的 Go 语言重写版本，提供轻量级 Cookie 和 LocalStorage 
   - 上下文取消支持（context.Context）
   - 速率限制（60次/分钟）防止 DDoS
   - 完善的单元测试与性能基准测试
+  - 日请求1w左右不需要过度设计
 
 ## 模块导航
 
