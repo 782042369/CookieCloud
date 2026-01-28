@@ -38,20 +38,32 @@ func New(dataDir string) (*Storage, error) {
 	return &Storage{dataDir: dataDir}, nil
 }
 
+// checkContext 检查 context 是否已取消（辅助函数）
+func checkContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
 // SaveEncryptedData 保存加密数据到指定 UUID 的文件中
 // 支持 context 取消信号，在文件操作前检查 context 状态
 func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string) error {
-	// 检查 context 是否已取消
-	select {
-	case <-ctx.Done():
-		return ctx.Err() // 返回 context 取消错误
-	default:
-		// 继续执行
+	// 优先检查 context，避免不必要的锁竞争
+	if err := checkContext(ctx); err != nil {
+		return err
 	}
 
 	lock := getFileLock(uuid)
 	lock.Lock()
 	defer lock.Unlock()
+
+	// 获取锁后再次检查 context（响应速度更快）
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
 
 	filePath := filepath.Join(s.dataDir, uuid+".json")
 	content, err := json.Marshal(CookieData{Encrypted: encrypted})
@@ -69,16 +81,21 @@ func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string)
 // LoadEncryptedData 从指定 UUID 的文件中加载加密数据
 // 支持 context 取消信号，在文件操作前检查 context 状态
 func (s *Storage) LoadEncryptedData(ctx context.Context, uuid string) (*CookieData, error) {
-	// 检查 context 是否已取消
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err() // 返回 context 取消错误
-	default:
-		// 继续执行
+	// 优先检查 context，避免不必要的文件操作
+	if err := checkContext(ctx); err != nil {
+		return nil, err
+	}
+
+	lock := getFileLock(uuid)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// 获取锁后再次检查 context
+	if err := checkContext(ctx); err != nil {
+		return nil, err
 	}
 
 	filePath := filepath.Join(s.dataDir, uuid+".json")
-
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
