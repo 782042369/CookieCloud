@@ -78,20 +78,31 @@ func main() {
 
 	logger.Info("服务器监听", "address", "http://localhost:"+cfg.Port+cfg.APIRoot)
 
-	go setupGracefulShutdown(app, store)
+	// 启动服务器（在独立的 goroutine 中）
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- app.Listen(":" + cfg.Port)
+	}()
 
-	if err := app.Listen(":" + cfg.Port); err != nil {
-		logger.Error("启动失败", "error", err)
+	// 信号监听
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// 等待服务器错误或信号
+	select {
+	case err := <-serverErr:
+		// 服务器启动失败或运行出错
+		logger.Error("服务器异常退出", "error", err)
 		os.Exit(1)
+	case sig := <-sigChan:
+		// 收到关闭信号
+		logger.Info("收到关闭信号", "signal", sig)
+		gracefulShutdown(app, store)
 	}
 }
 
-func setupGracefulShutdown(app *fiber.App, store *storage.Storage) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	<-c
-	logger.Info("收到关闭信号，正在优雅关闭...")
+func gracefulShutdown(app *fiber.App, store *storage.Storage) {
+	logger.Info("正在优雅关闭...")
 
 	// 关闭存储，忽略错误（程序即将退出）
 	_ = store.Close()
