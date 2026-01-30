@@ -1,6 +1,6 @@
 # CookieCloud - 运维手册
 
-> 最后更新：2026-01-28
+> 最后更新：2026-01-30（添加 .env.example 配置示例）
 
 本文档面向 CookieCloud Go 版本的运维工程师，介绍部署流程、监控告警、故障排查等核心内容。
 
@@ -58,15 +58,15 @@ services:
     volumes:
       - ./data:/data
 
-    # 资源限制
+    # 资源限制（小型个人项目）
     deploy:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M
         reservations:
-          cpus: '0.25'
-          memory: 128M
+          cpus: '0.1'
+          memory: 64M
 
     # 健康检查
     healthcheck:
@@ -252,11 +252,11 @@ spec:
           value: "Asia/Shanghai"
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: "64Mi"
+            cpu: "50m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
         volumeMounts:
         - name: data
           mountPath: /data
@@ -324,6 +324,8 @@ kubectl scale deployment cookiecloud --replicas=3
 ## 配置管理
 
 ### 环境变量说明
+
+**完整的环境变量配置示例**请参考：@.env.example
 
 | 变量名 | 默认值 | 说明 | 示例 |
 |--------|--------|------|------|
@@ -604,7 +606,7 @@ curl -X GET "elasticsearch:9200/cookiecloud-*/_search" -H 'Content-Type: applica
 
 ## 故障排查
 
-### 常见问题
+### 常见问题（2026-01-30 更新）
 
 #### 1. 服务无法启动
 

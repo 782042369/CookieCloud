@@ -1,6 +1,6 @@
 # CookieCloud - 开发者指南
 
-> 最后更新：2026-01-28
+> 最后更新：2026-01-30（最新修复 golangci-lint 问题）
 
 本文档面向 CookieCloud Go 版本的开发者，介绍开发环境搭建、代码规范、测试流程等核心内容。
 
@@ -22,7 +22,7 @@
 - **Go 版本**：1.25.5+
 - **操作系统**：Linux / macOS / Windows
 - **磁盘空间**：至少 100MB（含依赖）
-- **内存**：建议 2GB+
+- **内存**：建议 200MB（小型个人项目）
 
 ### 工具安装
 
@@ -60,13 +60,38 @@ go run cmd/cookiecloud/main.go
 创建 `.env` 文件（可选，用于本地开发）：
 
 ```bash
-# .env 示例
-PORT=8088              # HTTP 服务端口（默认 8088）
-API_ROOT=/api          # API 路径前缀（默认 /）
-DATA_DIR=./data        # 数据存储目录（默认 ./data）
+# 复制示例配置文件
+cp .env.example .env
+
+# 编辑 .env 文件设置你的配置
+vim .env
 ```
 
-**注意**：Go 不自动加载 `.env` 文件，如需使用请参考 `godotenv` 库（本项目未集成）。
+**完整的环境变量列表**请参考：@.env.example
+
+**可用环境变量**：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `8088` | HTTP 服务端口 |
+| `API_ROOT` | `` | API 路径前缀（自动去除尾部斜杠） |
+| `DATA_DIR` | `./data` | 数据存储目录 |
+| `TZ` | `Asia/Shanghai` | 时区（Docker 容器内） |
+
+**注意**：Go 标准库不自动加载 `.env` 文件，本项目直接从环境变量读取配置。可以使用以下方式设置：
+
+```bash
+# 方式1：直接导出环境变量
+export PORT=9090
+export API_ROOT=/api
+go run cmd/cookiecloud/main.go
+
+# 方式2：使用 direnv（推荐）
+# 在 .envrc 中添加：export PORT=9090
+
+# 方式3：Docker 运行时通过 -e 参数
+docker run -e PORT=9090 -e API_ROOT=/api ...
+```
 
 ---
 
@@ -82,7 +107,7 @@ CookieCloud/
 ├── internal/               # 私有代码（不可被外部导入）
 │   ├── cache/              # 内存缓存（sync.Map + TTL）
 │   ├── config/             # 环境变量配置
-│   ├── crypto/             # AES-256-CBC 加密
+│   ├── cryptox/            # AES-256-CBC 加密
 │   ├── handlers/           # HTTP 路由处理器
 │   ├── logger/             # 结构化日志
 │   └── storage/            # JSON 文件存储
@@ -115,7 +140,7 @@ graph TD
 
     C --> D
     C --> E
-    C --> G[internal/crypto]
+    C --> G[internal/cryptox]
 
     style A fill:#e1f5ff
     style C fill:#fff4e1
@@ -196,7 +221,7 @@ go vet ./...
 |------|---------|---------|---------|
 | `internal/cache` | cache_test.go | 6 | ❌ |
 | `internal/config` | config_test.go | 3 | ❌ |
-| `internal/crypto` | crypto_test.go | 3 | ❌ |
+| `internal/cryptox` | crypto_test.go | 3 | ❌ |
 | `internal/handlers` | handlers_test.go | 11 | ✅ (2) |
 | `internal/logger` | logger_test.go | 3 | ❌ |
 | `internal/storage` | storage_test.go | 5 | ❌ |
@@ -304,12 +329,17 @@ golangci-lint run --fix
 
 提交代码前确保：
 
-- [ ] 所有测试通过（`go test ./...`）
+- [ ] 所有测试通过（`go test -race ./...`）
 - [ ] 代码格式化（`go fmt ./...`）
-- [ ] Lint 检查通过（`golangci-lint run`）
-- [ ] 添加必要的单元测试
-- [ ] 更新相关文档
-- [ ] Commit message 遵循规范
+- [ ] **Lint 检查通过（`golangci-lint run`）- 必须 0 issues！**
+- [ ] 添加必要的单元测试（目标覆盖率 80%+）
+- [ ] 更新相关文档（CLAUDE.md、CONTRIB.md）
+- [ ] Commit message 遵循 [Conventional Commits](https://www.conventionalcommits.org/)
+
+**特别注意**：
+- 所有错误返回值必须检查（errcheck 规则）
+- 包命名不能与标准库冲突（如 crypto → cryptox）
+- 测试中的 `json.Unmarshal`、`app.Test` 等调用必须有错误处理
 
 ---
 
