@@ -1,6 +1,6 @@
-// Package crypto 提供加密解密功能
+// Package cryptox 提供加密解密功能
 // 兼容 CryptoJS 的 AES-256-CBC 加密算法和 EVP_BytesToKey 密钥派生
-package crypto
+package cryptox
 
 import (
 	"bytes"
