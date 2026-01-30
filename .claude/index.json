@@ -1,129 +1,376 @@
 {
-  "timestamp": "2026-01-28T12:44:21Z",
-  "project": {
-    "name": "CookieCloud",
-    "description": "CookieCloud Go 实现 - 轻量级 Cookie 和 LocalStorage 同步服务",
-    "language": "Go",
-    "version": "1.25.5"
+  "metadata": {
+    "version": "1.0.0",
+    "last_scan": "2026-01-30T15:06:12+08:00",
+    "project_name": "CookieCloud",
+    "project_type": "Go Web Service",
+    "description": "CookieCloud 的 Go 语言重写版本，提供轻量级 Cookie 和 LocalStorage 同步服务"
+  },
+  "statistics": {
+    "total_files_estimated": 35,
+    "files_scanned": 35,
+    "coverage_percentage": 100,
+    "documentation_modules": 0,
+    "source_modules": 7,
+    "test_files": 7,
+    "lines_of_code_estimated": 1500,
+    "truncated": false
+  },
+  "ignore_rules": {
+    "source": ".gitignore",
+    "patterns": [
+      "data/**",
+      "coverage*.out",
+      "coverage*.html",
+      "*.exe",
+      "*.dll",
+      "*.so",
+      "*.dylib",
+      "*.test",
+      "go.work",
+      "go.work.sum",
+      ".idea/**",
+      ".vscode/**",
+      "*.swp",
+      "*.swo",
+      ".DS_Store",
+      "Thumbs.db",
+      "*.log",
+      "tmp/**",
+      "temp/**",
+      ".golangci/**",
+      "*.sarif",
+      "*.prof",
+      ".git/**"
+    ],
+    "total_patterns": 29
   },
   "modules": [
     {
+      "name": "cmd/cookiecloud",
       "path": "cmd/cookiecloud",
-      "name": "Application Entry",
-      "entry": "cmd/cookiecloud/main.go",
-      "responsibility": "应用入口，初始化 Web 服务器和路由",
-      "has_tests": false,
-      "has_config": false
+      "language": "Go",
+      "entry_point": "main.go",
+      "lines": 126,
+      "responsibility": "应用入口，Web 服务器初始化，路由注册，优雅关闭",
+      "dependencies": [
+        "internal/config",
+        "internal/handlers",
+        "internal/storage",
+        "internal/cache",
+        "internal/logger",
+        "github.com/gofiber/fiber/v2"
+      ],
+      "tests": false,
+      "test_count": 0,
+      "has_readme": false,
+      "has_claude_md": false,
+      "key_features": [
+        "Fiber Web 框架初始化",
+        "CORS 中间件配置",
+        "速率限制（60次/分钟）",
+        "优雅关闭（context.Context）",
+        "信号监听（SIGTERM/SIGINT）"
+      ]
     },
     {
+      "name": "internal/config",
       "path": "internal/config",
-      "name": "Configuration",
-      "entry": "internal/config/config.go",
-      "responsibility": "环境变量配置管理（PORT, API_ROOT, DATA_DIR）",
-      "has_tests": true,
-      "test_file": "internal/config/config_test.go"
+      "language": "Go",
+      "entry_point": "config.go",
+      "responsibility": "环境变量配置管理",
+      "dependencies": [],
+      "tests": true,
+      "test_file": "config_test.go",
+      "test_count": 3,
+      "has_readme": false,
+      "has_claude_md": false,
+      "environment_variables": [
+        "PORT",
+        "API_ROOT",
+        "DATA_DIR"
+      ]
     },
     {
+      "name": "internal/handlers",
       "path": "internal/handlers",
-      "name": "HTTP Handlers",
-      "entry": "internal/handlers/handlers.go",
-      "responsibility": "HTTP 路由处理、请求验证、响应格式化",
-      "has_tests": true,
-      "test_file": "internal/handlers/handlers_test.go",
-      "interfaces": ["UpdateHandler", "GetHandler", "RootHandler"]
+      "language": "Go",
+      "entry_point": "handlers.go",
+      "lines": 147,
+      "responsibility": "HTTP 路由与请求处理，参数验证，响应格式化",
+      "dependencies": [
+        "internal/cache",
+        "internal/cryptox",
+        "internal/logger",
+        "internal/storage",
+        "github.com/gofiber/fiber/v2"
+      ],
+      "tests": true,
+      "test_file": "handlers_test.go",
+      "test_count": 11,
+      "benchmark_tests": 2,
+      "has_readme": false,
+      "has_claude_md": false,
+      "api_endpoints": [
+        "GET/POST / - 欢迎接口",
+        "POST /update - 更新加密数据",
+        "GET/POST /get/:uuid - 获取数据"
+      ],
+      "key_features": [
+        "UUID 长度验证（≤256 字符）",
+        "加密数据长度限制（10MB）",
+        "统一错误响应格式",
+        "支持密码解密（POST /get/:uuid）"
+      ]
     },
     {
+      "name": "internal/storage",
       "path": "internal/storage",
-      "name": "Storage Layer",
-      "entry": "internal/storage/storage.go",
-      "responsibility": "JSON 文件存储，支持并发安全和 context 取消",
-      "has_tests": true,
-      "test_file": "internal/storage/storage_test.go",
-      "data_models": ["CookieData"]
+      "language": "Go",
+      "entry_point": "storage.go",
+      "responsibility": "JSON 文件存储，支持 context 取消",
+      "dependencies": [],
+      "tests": true,
+      "test_file": "storage_test.go",
+      "test_count": 5,
+      "has_readme": false,
+      "has_claude_md": false,
+      "key_features": [
+        "JSON 文件持久化",
+        "并发安全（每个 UUID 独立锁）",
+        "Context 取消支持",
+        "原子写入（临时文件 + 重命名）"
+      ]
     },
     {
-      "path": "internal/crypto",
-      "name": "Cryptography",
-      "entry": "internal/crypto/crypto.go",
-      "responsibility": "AES-256-CBC 加密，兼容 CryptoJS 和 OpenSSL",
-      "has_tests": true,
-      "test_file": "internal/crypto/crypto_test.go"
+      "name": "internal/cryptox",
+      "path": "internal/cryptox",
+      "language": "Go",
+      "entry_point": "crypto.go",
+      "responsibility": "AES-256-CBC 加密（CryptoJS 兼容）",
+      "dependencies": [],
+      "tests": true,
+      "test_file": "crypto_test.go",
+      "test_count": 3,
+      "has_readme": false,
+      "has_claude_md": false,
+      "key_features": [
+        "AES-256-CBC 加密",
+        "EVP_BytesToKey 密钥派生",
+        "CryptoJS 兼容性",
+        "Base64 编码"
+      ]
     },
     {
+      "name": "internal/cache",
       "path": "internal/cache",
-      "name": "Memory Cache",
-      "entry": "internal/cache/cache.go",
-      "responsibility": "sync.Map 内存缓存，支持 TTL 过期",
-      "has_tests": true,
-      "test_file": "internal/cache/cache_test.go"
+      "language": "Go",
+      "entry_point": "cache.go",
+      "responsibility": "sync.Map 内存缓存，TTL 过期",
+      "dependencies": [],
+      "tests": true,
+      "test_file": "cache_test.go",
+      "test_count": 6,
+      "has_readme": false,
+      "has_claude_md": false,
+      "key_features": [
+        "sync.Map 并发安全",
+        "TTL 自动过期（5 分钟）",
+        "惰性删除",
+        "Get/Set 操作"
+      ]
     },
     {
+      "name": "internal/logger",
       "path": "internal/logger",
-      "name": "Structured Logger",
-      "entry": "internal/logger/logger.go",
-      "responsibility": "结构化日志（INFO/WARN/ERROR），key-value 格式",
-      "has_tests": true,
-      "test_file": "internal/logger/logger_test.go"
+      "language": "Go",
+      "entry_point": "logger.go",
+      "responsibility": "结构化日志（INFO/WARN/ERROR）",
+      "dependencies": [],
+      "tests": true,
+      "test_file": "logger_test.go",
+      "test_count": 3,
+      "has_readme": false,
+      "has_claude_md": false,
+      "log_levels": [
+        "INFO",
+        "WARN",
+        "ERROR"
+      ],
+      "log_format": "[LEVEL] YYYY/MM/DD HH:MM:SS file:line: message | key1=value1 | key2=value2"
     }
   ],
-  "coverage": {
-    "total_files": 27,
-    "scanned_files": 27,
-    "coverage_percent": 100,
-    "modules_count": 7,
-    "test_files": 6,
-    "has_documentation": {
-      "root_readme": true,
-      "root_readme_cn": true,
-      "dockerfile": true,
-      "github_workflow": true,
-      "golangci_config": true
-    }
-  },
   "documentation": {
-    "root_claude_md": {
-      "path": "CLAUDE.md",
-      "lines": 120,
-      "sections": ["项目快照", "模块导航", "快速启动", "核心设计", "质量工具", "参考文档"]
+    "root_readme": {
+      "path": "README.md",
+      "lines": 474,
+      "language": "zh-CN",
+      "sections": [
+        "功能特性",
+        "快速开始",
+        "部署方式",
+        "API 文档",
+        "开发指南",
+        "运维手册",
+        "常见问题"
+      ]
     },
-    "existing_docs": {
-      "README.md": true,
-      "README_cn.md": true,
-      "Dockerfile": true,
-      ".github/workflows/docker-image.yml": true,
-      ".golangci.yml": true
-    },
-    "deduplication_stats": {
-      "avoided_duplicate_lines": 0,
-      "used_reference_links": 5,
-      "reference_targets": ["README.md", "README_cn.md", "Dockerfile", ".github/workflows/docker-image.yml", ".golangci.yml"]
-    }
-  },
-  "tech_stack": {
-    "language": "Go 1.25.5",
-    "web_framework": "Fiber v2.52.10",
-    "encryption": "AES-256-CBC (CryptoJS compatible)",
-    "testing": "standard Go testing + benchmarks",
-    "linting": "golangci-lint"
-  },
-  "architecture": {
-    "style": "模块化设计（cmd/ + internal/）",
-    "patterns": [
-      "依赖注入（Handlers 接收 storage 和 cache）",
-      "context.Context 取消信号传递",
-      "sync.Map 并发安全",
-      "中间件模式（CORS, limiter, compress）"
+    "docs": [
+      {
+        "path": "docs/CONTRIB.md",
+        "title": "开发者指南",
+        "lines": 492,
+        "last_updated": "2026-01-30",
+        "topics": [
+          "开发环境",
+          "项目结构",
+          "开发工作流",
+          "测试指南",
+          "代码质量",
+          "性能优化",
+          "调试技巧"
+        ]
+      },
+      {
+        "path": "docs/RUNBOOK.md",
+        "title": "运维手册",
+        "lines": 1026,
+        "last_updated": "2026-01-30",
+        "topics": [
+          "部署指南",
+          "配置管理",
+          "监控与告警",
+          "日志管理",
+          "故障排查",
+          "性能调优",
+          "安全加固",
+          "备份与恢复"
+        ]
+      },
+      {
+        "path": "docs/CHANGELOG.md",
+        "title": "变更日志",
+        "exists": true
+      }
+    ],
+    "config_files": [
+      {
+        "path": ".env.example",
+        "purpose": "环境变量配置示例"
+      },
+      {
+        "path": ".golangci.yml",
+        "purpose": "golangci-lint 配置"
+      },
+      {
+        "path": "Dockerfile",
+        "purpose": "Docker 多阶段构建（UPX 压缩）"
+      },
+      {
+        "path": "Docker-compose.yml",
+        "purpose": "Docker Compose 配置"
+      },
+      {
+        "path": ".github/workflows/docker-image.yml",
+        "purpose": "CI/CD 多架构构建"
+      }
     ]
   },
-  "key_features": [
-    "兼容 CryptoJS AES-256-CBC 加密",
-    "内存缓存（5分钟 TTL）",
-    "速率限制（60次/分钟）",
-    "context.Context 取消支持",
-    "完善的单元测试与基准测试",
-    "Docker 极简镜像（Scratch + UPX 压缩）"
-  ],
-  "gaps": [],
-  "next_steps": [],
-  "truncated": false
+  "coverage_analysis": {
+    "scan_phases_completed": [
+      "阶段 A：全仓清点（轻量）",
+      "阶段 B：模块优先扫描（中等）"
+    ],
+    "phase_c_triggered": false,
+    "reason_for_phase_c": "项目规模较小（~1500 行代码），阶段 B 已覆盖所有关键模块",
+    "gaps_identified": [],
+    "next_scan_recommendations": [
+      "如需添加新模块，优先扫描 internal/ 目录",
+      "建议定期更新覆盖率报告（go test -coverprofile）"
+    ]
+  },
+  "documentation_deduplication": {
+    "strategy": "渐进式披露（Progressive Disclosure）",
+    "root_claude_md_lines": 138,
+    "module_claude_md_generated": 0,
+    "existing_readme_detected": true,
+    "existing_docs_linked": true,
+    "duplicate_content_avoided": "约 1600 行（通过 @ 引用链接到详细文档）",
+    "references_used": [
+      "@README.md",
+      "@README_cn.md",
+      "@docs/CONTRIB.md",
+      "@docs/RUNBOOK.md",
+      "@docs/CHANGELOG.md",
+      "@.env.example",
+      "@.golangci.yml",
+      "@Dockerfile",
+      "@.github/workflows/docker-image.yml",
+      "源码文件引用（main.go, config.go 等）"
+    ]
+  },
+  "quality_metrics": {
+    "test_coverage": {
+      "total_tests": 31,
+      "unit_tests": 31,
+      "benchmark_tests": 2,
+      "modules_with_tests": 6,
+      "modules_without_tests": 1
+    },
+    "code_quality": {
+      "linter": "golangci-lint",
+      "linter_config": ".golangci.yml",
+      "enabled_checks": [
+        "gofmt",
+        "govet",
+        "errcheck",
+        "staticcheck",
+        "gosimple",
+        "unused"
+      ]
+    },
+    "documentation_quality": {
+      "root_readme_exists": true,
+      "developer_guide_exists": true,
+      "runbook_exists": true,
+      "changelog_exists": true,
+      "api_documentation": "README.md 中有详细说明"
+    }
+  },
+  "architecture_insights": {
+    "design_patterns": [
+      "依赖注入（handlers.New）",
+      "中间件模式（CORS、限流、压缩）",
+      "Table-Driven Tests"
+    ],
+    "concurrency_model": "Goroutines + sync.Map",
+    "security_features": [
+      "AES-256-CBC 端到端加密",
+      "速率限制（60次/分钟）",
+      "请求体大小限制（11MB）",
+      "UUID 长度验证（≤256 字符）",
+      "加密数据长度限制（10MB）"
+    ],
+    "performance_optimizations": [
+      "内存缓存（5分钟 TTL）",
+      "sync.Map 并发安全",
+      "每个 UUID 独立锁",
+      "UPX 压缩二进制（减少 60% 体积）",
+      "Scratch 基础镜像（~5MB）"
+    ]
+  },
+  "next_steps": {
+    "recommended_actions": [
+      "保持现有文档结构，已通过 @ 引用实现渐进式披露",
+      "定期运行 golangci-lint 确保代码质量",
+      "添加更多单元测试以提高覆盖率到 80%+",
+      "考虑集成 Prometheus metrics 用于监控"
+    ],
+    "optional_improvements": [
+      "添加集成测试（E2E 测试）",
+      "添加性能监控端点（/debug/pprof）",
+      "优化 Docker 镜像构建速度（缓存优化）",
+      "添加 CI/CD 中的自动化测试报告"
+    ]
+  }
 }
