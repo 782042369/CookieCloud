@@ -8,9 +8,15 @@ import (
 // TestLoadWithDefaults 测试使用默认配置加载
 func TestLoadWithDefaults(t *testing.T) {
 	// 清理环境变量
-	os.Unsetenv("PORT")
-	os.Unsetenv("API_ROOT")
-	os.Unsetenv("DATA_DIR")
+	if err := os.Unsetenv("PORT"); err != nil {
+		t.Fatalf("清理环境变量 PORT 失败: %v", err)
+	}
+	if err := os.Unsetenv("API_ROOT"); err != nil {
+		t.Fatalf("清理环境变量 API_ROOT 失败: %v", err)
+	}
+	if err := os.Unsetenv("DATA_DIR"); err != nil {
+		t.Fatalf("清理环境变量 DATA_DIR 失败: %v", err)
+	}
 
 	cfg := Load()
 
@@ -30,15 +36,27 @@ func TestLoadWithDefaults(t *testing.T) {
 // TestLoadWithEnvVars 测试使用环境变量覆盖默认值
 func TestLoadWithEnvVars(t *testing.T) {
 	// 设置环境变量
-	os.Setenv("PORT", "9000")
-	os.Setenv("API_ROOT", "/api/v1")
-	os.Setenv("DATA_DIR", "/var/lib/cookiecloud")
+	if err := os.Setenv("PORT", "9000"); err != nil {
+		t.Fatalf("设置环境变量 PORT 失败: %v", err)
+	}
+	if err := os.Setenv("API_ROOT", "/api/v1"); err != nil {
+		t.Fatalf("设置环境变量 API_ROOT 失败: %v", err)
+	}
+	if err := os.Setenv("DATA_DIR", "/var/lib/cookiecloud"); err != nil {
+		t.Fatalf("设置环境变量 DATA_DIR 失败: %v", err)
+	}
 
 	// 测试结束后清理环境变量
 	defer func() {
-		os.Unsetenv("PORT")
-		os.Unsetenv("API_ROOT")
-		os.Unsetenv("DATA_DIR")
+		if err := os.Unsetenv("PORT"); err != nil {
+			t.Errorf("清理环境变量 PORT 失败: %v", err)
+		}
+		if err := os.Unsetenv("API_ROOT"); err != nil {
+			t.Errorf("清理环境变量 API_ROOT 失败: %v", err)
+		}
+		if err := os.Unsetenv("DATA_DIR"); err != nil {
+			t.Errorf("清理环境变量 DATA_DIR 失败: %v", err)
+		}
 	}()
 
 	cfg := Load()
@@ -70,7 +88,9 @@ func TestLoadWithTrailingSlash(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		os.Setenv("API_ROOT", tc.input)
+		if err := os.Setenv("API_ROOT", tc.input); err != nil {
+			t.Fatalf("设置环境变量 API_ROOT 失败: %v", err)
+		}
 
 		cfg := Load()
 
@@ -78,15 +98,23 @@ func TestLoadWithTrailingSlash(t *testing.T) {
 			t.Errorf("输入: '%s'，期望: '%s'，实际得到: '%s'", tc.input, tc.expected, cfg.APIRoot)
 		}
 
-		os.Unsetenv("API_ROOT")
+		if err := os.Unsetenv("API_ROOT"); err != nil {
+			t.Fatalf("清理环境变量 API_ROOT 失败: %v", err)
+		}
 	}
 }
 
 // TestLoadWithPartialEnvVars 测试部分环境变量设置
 func TestLoadWithPartialEnvVars(t *testing.T) {
 	// 只设置 PORT
-	os.Setenv("PORT", "8080")
-	defer os.Unsetenv("PORT")
+	if err := os.Setenv("PORT", "8080"); err != nil {
+		t.Fatalf("设置环境变量 PORT 失败: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("PORT"); err != nil {
+			t.Errorf("清理环境变量 PORT 失败: %v", err)
+		}
+	}()
 
 	cfg := Load()
 
@@ -107,8 +135,14 @@ func TestLoadWithPartialEnvVars(t *testing.T) {
 // TestGetEnv 测试获取环境变量的辅助函数
 func TestGetEnv(t *testing.T) {
 	// 测试已设置的环境变量
-	os.Setenv("TEST_VAR", "test_value")
-	defer os.Unsetenv("TEST_VAR")
+	if err := os.Setenv("TEST_VAR", "test_value"); err != nil {
+		t.Fatalf("设置环境变量 TEST_VAR 失败: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("TEST_VAR"); err != nil {
+			t.Errorf("清理环境变量 TEST_VAR 失败: %v", err)
+		}
+	}()
 
 	result := getEnv("TEST_VAR", "default_value")
 	if result != "test_value" {

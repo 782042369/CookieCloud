@@ -4,7 +4,7 @@ package handlers
 
 import (
 	"cookiecloud/internal/cache"
-	"cookiecloud/internal/crypto"
+	"cookiecloud/internal/cryptox"
 	"cookiecloud/internal/logger"
 	"cookiecloud/internal/storage"
 
@@ -123,7 +123,7 @@ func (h *Handlers) FiberGetHandler(c *fiber.Ctx) error {
 			return sendError(c, fiber.StatusBadRequest, "Bad Request: failed to parse JSON")
 		}
 		if req.Password != "" {
-			decrypted := crypto.Decrypt(uuid, encrypted, req.Password)
+			decrypted := cryptox.Decrypt(uuid, encrypted, req.Password)
 			c.Set("Content-Type", "application/json")
 			return c.Send(decrypted)
 		}

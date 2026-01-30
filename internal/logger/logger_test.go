@@ -59,4 +59,5 @@ func TestConcurrentLogging(t *testing.T) {
 	wg.Wait()
 
 	// 如果没有 panic 和死锁，测试通过
+	t.Log("并发日志测试完成，无 panic 和死锁")
 }

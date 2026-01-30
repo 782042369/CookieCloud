@@ -135,7 +135,9 @@ func TestConcurrentWrites(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			data := "data-" + string(rune('0'+index%10))
-			store.SaveEncryptedData(context.Background(), uuid, data)
+			if err := store.SaveEncryptedData(context.Background(), uuid, data); err != nil {
+				t.Errorf("并发保存失败: %v", err)
+			}
 		}(i)
 	}
 
@@ -339,8 +341,12 @@ func BenchmarkSaveAndLoad(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.SaveEncryptedData(context.Background(), uuid, data)
-		store.LoadEncryptedData(context.Background(), uuid)
+		if err := store.SaveEncryptedData(context.Background(), uuid, data); err != nil {
+			b.Fatalf("基准测试保存失败: %v", err)
+		}
+		if _, err := store.LoadEncryptedData(context.Background(), uuid); err != nil {
+			b.Fatalf("基准测试加载失败: %v", err)
+		}
 	}
 }
 
@@ -352,7 +358,9 @@ func BenchmarkConcurrentWrites(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			store.SaveEncryptedData(context.Background(), uuid, "test-data")
+			if err := store.SaveEncryptedData(context.Background(), uuid, "test-data"); err != nil {
+				b.Errorf("并发保存失败: %v", err)
+			}
 		}
 	})
 }

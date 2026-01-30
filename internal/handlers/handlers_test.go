@@ -119,7 +119,9 @@ func TestFiberUpdateHandlerSuccess(t *testing.T) {
 	// 验证响应体
 	var respBody map[string]interface{}
 	respBodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(respBodyBytes, &respBody)
+	if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if respBody["action"] != "done" {
 		t.Errorf("期望 action='done'，实际得到 %v", respBody["action"])
@@ -172,7 +174,9 @@ func TestFiberUpdateHandlerMissingFields(t *testing.T) {
 			// 验证错误响应格式
 			var respBody map[string]interface{}
 			respBodyBytes, _ := io.ReadAll(resp.Body)
-			json.Unmarshal(respBodyBytes, &respBody)
+			if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+				t.Fatalf("解析响应体失败: %v", err)
+			}
 
 			if respBody["action"] != "error" {
 				t.Error("期望 action='error'")
@@ -236,7 +240,9 @@ func TestFiberGetHandlerSuccess(t *testing.T) {
 	// 验证响应体
 	var respBody map[string]string
 	respBodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(respBodyBytes, &respBody)
+	if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if respBody["encrypted"] != encrypted {
 		t.Errorf("期望加密数据 '%s'，实际得到 '%s'", encrypted, respBody["encrypted"])
@@ -265,7 +271,9 @@ func TestFiberGetHandlerNotFound(t *testing.T) {
 	// 验证错误响应格式
 	var respBody map[string]interface{}
 	respBodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(respBodyBytes, &respBody)
+	if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if respBody["action"] != "error" {
 		t.Error("期望 action='error'")
@@ -351,7 +359,9 @@ func TestSendErrorResponse(t *testing.T) {
 	// 验证响应格式
 	var respBody map[string]string
 	respBodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(respBodyBytes, &respBody)
+	if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if respBody["action"] != "error" {
 		t.Error("期望 action='error'")
@@ -404,7 +414,9 @@ func TestFullUpdateAndGetFlow(t *testing.T) {
 	// 3. 验证数据
 	var getRespBody map[string]string
 	getRespBytes, _ := io.ReadAll(getResp.Body)
-	json.Unmarshal(getRespBytes, &getRespBody)
+	if err := json.Unmarshal(getRespBytes, &getRespBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if getRespBody["encrypted"] != encrypted {
 		t.Errorf("数据不匹配：期望 '%s'，实际得到 '%s'", encrypted, getRespBody["encrypted"])
@@ -439,7 +451,9 @@ func TestConcurrentRequests(t *testing.T) {
 			body, _ := json.Marshal(req)
 			httpReq := httptest.NewRequest("POST", "/update", bytes.NewReader(body))
 			httpReq.Header.Set("Content-Type", "application/json")
-			app.Test(httpReq)
+			if _, err := app.Test(httpReq); err != nil {
+				t.Errorf("并发请求失败: %v", err)
+			}
 		}(i)
 	}
 
@@ -471,7 +485,9 @@ func BenchmarkUpdateHandler(b *testing.B) {
 		body, _ := json.Marshal(req)
 		httpReq := httptest.NewRequest("POST", "/update", bytes.NewReader(body))
 		httpReq.Header.Set("Content-Type", "application/json")
-		app.Test(httpReq)
+		if _, err := app.Test(httpReq); err != nil {
+			b.Fatalf("基准测试请求失败: %v", err)
+		}
 	}
 }
 
@@ -491,7 +507,9 @@ func BenchmarkGetHandler(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		httpReq := httptest.NewRequest("GET", "/get/"+uuid, nil)
-		app.Test(httpReq)
+		if _, err := app.Test(httpReq); err != nil {
+			b.Fatalf("基准测试请求失败: %v", err)
+		}
 	}
 }
 
@@ -566,7 +584,9 @@ func TestFiberGetHandlerWithEmptyPassword(t *testing.T) {
 	// 验证返回的是加密数据
 	var respBody map[string]string
 	respBodyBytes, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(respBodyBytes, &respBody)
+	if err := json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		t.Fatalf("解析响应体失败: %v", err)
+	}
 
 	if respBody["encrypted"] != encrypted {
 		t.Errorf("期望返回加密数据，实际得到: %v", respBody)
