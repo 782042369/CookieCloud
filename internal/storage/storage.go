@@ -16,13 +16,13 @@ type CookieData struct {
 	Encrypted string `json:"encrypted"`
 }
 
-// fileLocks 全局文件锁（使用 sync.Map，Go 会自动清理未使用的条目）
+// fileLocks 全局文件锁（按 UUID 维度隔离，减少不同文件之间的锁竞争）
 var fileLocks sync.Map
 
 // getFileLock 获取指定UUID的文件锁
-func getFileLock(uuid string) *sync.Mutex {
-	lock, _ := fileLocks.LoadOrStore(uuid, &sync.Mutex{})
-	return lock.(*sync.Mutex)
+func getFileLock(uuid string) *sync.RWMutex {
+	lock, _ := fileLocks.LoadOrStore(uuid, &sync.RWMutex{})
+	return lock.(*sync.RWMutex)
 }
 
 // Storage 数据存储管理器
@@ -87,8 +87,8 @@ func (s *Storage) LoadEncryptedData(ctx context.Context, uuid string) (*CookieDa
 	}
 
 	lock := getFileLock(uuid)
-	lock.Lock()
-	defer lock.Unlock()
+	lock.RLock()
+	defer lock.RUnlock()
 
 	// 获取锁后再次检查 context
 	if err := checkContext(ctx); err != nil {
