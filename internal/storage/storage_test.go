@@ -533,3 +533,27 @@ func TestOverwriteWithDifferentSizes(t *testing.T) {
 		t.Error("再次覆盖后数据不匹配")
 	}
 }
+
+// TestInvalidUUIDPathTraversal 测试 UUID 路径穿越防护
+func TestInvalidUUIDPathTraversal(t *testing.T) {
+	tempDir := t.TempDir()
+	store, _ := New(tempDir)
+
+	invalidUUIDs := []string{"", ".", "..", "../escape", "sub/dir", `sub\dir`}
+
+	for _, uuid := range invalidUUIDs {
+		t.Run("save_"+uuid, func(t *testing.T) {
+			err := store.SaveEncryptedData(context.Background(), uuid, "test")
+			if err == nil {
+				t.Fatalf("期望 SaveEncryptedData(%q) 返回错误，但没有", uuid)
+			}
+		})
+
+		t.Run("load_"+uuid, func(t *testing.T) {
+			_, err := store.LoadEncryptedData(context.Background(), uuid)
+			if err == nil {
+				t.Fatalf("期望 LoadEncryptedData(%q) 返回错误，但没有", uuid)
+			}
+		})
+	}
+}
