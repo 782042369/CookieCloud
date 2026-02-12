@@ -24,6 +24,12 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// 验证配置合法性
+	if err := cfg.Validate(); err != nil {
+		logger.Error("配置验证失败", "error", err)
+		os.Exit(1)
+	}
+
 	logger.Info("CookieCloud 服务启动", "port", cfg.Port, "api_root", cfg.APIRoot, "data_dir", cfg.DataDir)
 
 	store, err := storage.New(cfg.DataDir)

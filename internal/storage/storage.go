@@ -39,7 +39,7 @@ func New(dataDir string) (*Storage, error) {
 	return &Storage{dataDir: dataDir}, nil
 }
 
-// checkContext 检查 context 是否已取消（辅助函数）
+// checkContext 检查 context 是否已取消
 func checkContext(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -54,14 +54,21 @@ func (s *Storage) resolveFilePath(uuid string) (string, error) {
 	if uuid == "" || uuid == "." || uuid == ".." {
 		return "", fmt.Errorf("invalid uuid: %q", uuid)
 	}
-	if strings.ContainsAny(uuid, `/\\`) {
+	// 检查路径分隔符，防止路径穿越（跨平台：/ 和 \）
+	if strings.ContainsAny(uuid, "/\\") {
 		return "", fmt.Errorf("invalid uuid contains path separator: %q", uuid)
 	}
-	return filepath.Join(s.dataDir, uuid+".json"), nil
+
+	fullPath := filepath.Join(s.dataDir, uuid+".json")
+	cleanPath := filepath.Clean(fullPath)
+	// 确保清理后的路径仍在 dataDir 内
+	if !strings.HasPrefix(cleanPath, filepath.Clean(s.dataDir)+string(filepath.Separator)) {
+		return "", fmt.Errorf("path traversal detected: uuid %q resolves outside data directory", uuid)
+	}
+	return cleanPath, nil
 }
 
 // SaveEncryptedData 保存加密数据到指定 UUID 的文件中
-// 支持 context 取消信号，在文件操作前检查 context 状态
 func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string) error {
 	// 优先检查 context，避免不必要的锁竞争
 	if err := checkContext(ctx); err != nil {
@@ -77,7 +84,7 @@ func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string)
 	lock.Lock()
 	defer lock.Unlock()
 
-	// 获取锁后再次检查 context（响应速度更快）
+	// 获取锁后再次检查 context
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
@@ -95,7 +102,6 @@ func (s *Storage) SaveEncryptedData(ctx context.Context, uuid, encrypted string)
 }
 
 // LoadEncryptedData 从指定 UUID 的文件中加载加密数据
-// 支持 context 取消信号，在文件操作前检查 context 状态
 func (s *Storage) LoadEncryptedData(ctx context.Context, uuid string) (*CookieData, error) {
 	// 优先检查 context，避免不必要的文件操作
 	if err := checkContext(ctx); err != nil {
